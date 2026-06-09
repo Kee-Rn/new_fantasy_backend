@@ -11,7 +11,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+    $this->app->singleton(\App\Services\Cricket\FantasyPointsService::class);
+    $this->app->singleton(\App\Services\Cricket\BallByBallStatsService::class);
+    $this->app->singleton(\App\Services\Cricket\PointsCalculator::class);
     }
 
     /**
