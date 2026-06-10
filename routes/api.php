@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MatchController;
 use App\Http\Controllers\Api\ContestController;
+use App\Http\Controllers\Api\PlayerController;
 
 /*
 |--------------------------------------------------------------------------
@@ -22,6 +23,9 @@ Route::get('/matches/{id}',                     [MatchController::class, 'show']
 // ── Contests ───────────────────────────────────────────────────────────────
 Route::get('/matches/{matchId}/contests',       [ContestController::class, 'forMatch']);
 Route::get('/contests/{id}',                    [ContestController::class, 'show']);
+
+// ── Players ────────────────────────────────────────────────────────────────
+Route::get('/matches/{matchId}/players',        [PlayerController::class, 'forMatch']);
 
 /*
 |--------------------------------------------------------------------------
