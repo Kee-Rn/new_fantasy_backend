@@ -15,7 +15,11 @@ class ListMatchPlayers extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\Action::make('assign_squad')
+                ->label('Assign Squad')
+                ->icon('heroicon-o-user-plus')
+                ->color('primary')
+                ->url(MatchPlayerResource::getUrl('assign')),
         ];
     }
 
