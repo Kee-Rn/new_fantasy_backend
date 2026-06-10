@@ -17,7 +17,6 @@ class MatchPlayer extends Model
         'team_id',
         'is_playing_xi',
         'is_bench',
-        'batting_order',
     ];
 
     protected $casts = [
@@ -57,15 +56,5 @@ class MatchPlayer extends Model
     public function scopeForTeam($query, int $teamId)
     {
         return $query->where('team_id', $teamId);
-    }
-
-    // ── Helpers ────────────────────────────────────────────────────────────
-
-    /**
-     * Shortcut to get the player's role (WK/BAT/ALL/BOWL).
-     */
-    public function getPlayerRoleAttribute(): ?string
-    {
-        return $this->player?->role;
     }
 }
