@@ -26,7 +26,7 @@ class AssignMatchPlayers extends Page implements HasForms
     use InteractsWithForms;
 
     protected static string $resource = MatchPlayerResource::class;
-    protected static string $view     = 'filament.resources.match-player-resource.pages.assign-match-players';
+    protected static string $view     = 'filament.resources.assign-match-players';
 
     // ── Form state ────────────────────────────────────────────────────
 
