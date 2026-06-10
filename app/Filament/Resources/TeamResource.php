@@ -51,23 +51,8 @@ class TeamResource extends Resource
                         ->label('Team name')
                         ->required()
                         ->maxLength(100)
-                        ->placeholder('e.g. Mumbai Indians'),
-
-                    Forms\Components\TextInput::make('short_name')
-                        ->label('Short name')
-                        ->maxLength(10)
-                        ->placeholder('e.g. MI')
-                        ->helperText('Used in scoreboards and badges'),
-
-                    Forms\Components\TextInput::make('country')
-                        ->label('Country')
-                        ->maxLength(60)
-                        ->placeholder('e.g. India'),
-
-                    Forms\Components\TextInput::make('city')
-                        ->label('City')
-                        ->maxLength(60)
-                        ->placeholder('e.g. Mumbai'),
+                        ->placeholder('e.g. Karnali Yaks')
+                        ->columnSpanFull(),
 
                 ])
                 ->columns(2),
@@ -75,12 +60,17 @@ class TeamResource extends Resource
             Forms\Components\Section::make('Logo')
                 ->schema([
 
-                    Forms\Components\TextInput::make('logo_url')
-                        ->label('Logo URL')
-                        ->url()
-                        ->maxLength(500)
-                        ->placeholder('https://...')
-                        ->suffixIcon('heroicon-o-photo'),
+                    Forms\Components\FileUpload::make('logo_path')
+                        ->label('Team logo')
+                        ->image()
+                        ->disk('public')
+                        ->directory('logos/teams')
+                        ->imageResizeMode('cover')
+                        ->imageCropAspectRatio('1:1')
+                        ->imageResizeTargetWidth('200')
+                        ->imageResizeTargetHeight('200')
+                        ->maxSize(1024)
+                        ->helperText('Square image recommended. Max 1MB.'),
 
                 ])
                 ->collapsible()
@@ -98,8 +88,9 @@ class TeamResource extends Resource
         return $table
             ->columns([
 
-                Tables\Columns\ImageColumn::make('logo_url')
+                Tables\Columns\ImageColumn::make('logo_path')
                     ->label('')
+                    ->disk('public')
                     ->width(36)
                     ->height(36)
                     ->extraImgAttributes(['class' => 'rounded']),
@@ -110,27 +101,11 @@ class TeamResource extends Resource
                     ->sortable()
                     ->weight('semibold'),
 
-                Tables\Columns\TextColumn::make('short_name')
-                    ->label('Code')
-                    ->badge()
-                    ->color('gray')
-                    ->placeholder('—'),
-
                 Tables\Columns\TextColumn::make('league.name')
                     ->label('League')
                     ->searchable()
                     ->sortable()
                     ->limit(30),
-
-                Tables\Columns\TextColumn::make('country')
-                    ->label('Country')
-                    ->placeholder('—')
-                    ->searchable(),
-
-                Tables\Columns\TextColumn::make('city')
-                    ->label('City')
-                    ->placeholder('—')
-                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('players_count')
                     ->label('Players')
@@ -157,17 +132,6 @@ class TeamResource extends Resource
                             ->mapWithKeys(fn ($l) => [
                                 $l->id => $l->name . ($l->season ? ' (' . $l->season . ')' : ''),
                             ])
-                    ),
-
-                Tables\Filters\SelectFilter::make('country')
-                    ->label('Country')
-                    ->searchable()
-                    ->options(
-                        Team::query()
-                            ->whereNotNull('country')
-                            ->distinct()
-                            ->orderBy('country')
-                            ->pluck('country', 'country')
                     ),
 
             ])

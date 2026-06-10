@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Team extends Model
 {
@@ -14,10 +15,7 @@ class Team extends Model
     protected $fillable = [
         'league_id',
         'name',
-        'short_name',
-        'country',
-        'city',
-        'logo_url',
+        'logo_path',
     ];
 
     // ── Relationships ──────────────────────────────────────────────────────
@@ -37,17 +35,11 @@ class Team extends Model
         return $this->hasMany(MatchPlayer::class);
     }
 
-    /**
-     * Matches where this team is the home side.
-     */
     public function homeMatches(): HasMany
     {
         return $this->hasMany(GameMatch::class, 'home_team_id');
     }
 
-    /**
-     * Matches where this team is the away side.
-     */
     public function awayMatches(): HasMany
     {
         return $this->hasMany(GameMatch::class, 'away_team_id');
@@ -55,9 +47,13 @@ class Team extends Model
 
     // ── Helpers ────────────────────────────────────────────────────────────
 
-    /**
-     * All matches (home + away) for this team.
-     */
+    public function getLogoUrlAttribute(): ?string
+    {
+        return $this->logo_path
+            ? Storage::url($this->logo_path)
+            : null;
+    }
+
     public function allMatches()
     {
         return GameMatch::where('home_team_id', $this->id)
