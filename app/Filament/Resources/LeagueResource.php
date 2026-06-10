@@ -34,41 +34,12 @@ class LeagueResource extends Resource
                         ->label('League name')
                         ->required()
                         ->maxLength(100)
-                        ->placeholder('e.g. Indian Premier League'),
-
-                    Forms\Components\TextInput::make('short_name')
-                        ->label('Short name')
-                        ->maxLength(20)
-                        ->placeholder('e.g. IPL')
-                        ->helperText('Used in compact views and badges'),
+                        ->placeholder('e.g. Nepal Premier League'),
 
                     Forms\Components\TextInput::make('season')
                         ->label('Season')
                         ->maxLength(20)
-                        ->placeholder('e.g. 2025 or 2024-25'),
-
-                    Forms\Components\TextInput::make('country')
-                        ->label('Country')
-                        ->maxLength(60)
-                        ->placeholder('e.g. India'),
-
-                ])
-                ->columns(2),
-
-            Forms\Components\Section::make('Format & status')
-                ->schema([
-
-                    Forms\Components\Select::make('match_type')
-                        ->label('Default match type')
-                        ->required()
-                        ->options([
-                            'T20' => 'T20',
-                            'ODI' => 'ODI',
-                            'Test' => 'Test',
-                            'T10' => 'T10',
-                        ])
-                        ->default('T20')
-                        ->helperText('Individual matches can override this'),
+                        ->placeholder('e.g. 2025'),
 
                     Forms\Components\Toggle::make('is_active')
                         ->label('Active')
@@ -81,12 +52,17 @@ class LeagueResource extends Resource
             Forms\Components\Section::make('Logo')
                 ->schema([
 
-                    Forms\Components\TextInput::make('logo_url')
-                        ->label('Logo URL')
-                        ->url()
-                        ->maxLength(500)
-                        ->placeholder('https://...')
-                        ->suffixIcon('heroicon-o-photo'),
+                    Forms\Components\FileUpload::make('logo_path')
+                        ->label('League logo')
+                        ->image()
+                        ->disk('public')
+                        ->directory('logos/leagues')
+                        ->imageResizeMode('cover')
+                        ->imageCropAspectRatio('1:1')
+                        ->imageResizeTargetWidth('200')
+                        ->imageResizeTargetHeight('200')
+                        ->maxSize(1024)
+                        ->helperText('Square image recommended. Max 1MB.'),
 
                 ])
                 ->collapsible()
@@ -104,11 +80,11 @@ class LeagueResource extends Resource
         return $table
             ->columns([
 
-                Tables\Columns\ImageColumn::make('logo_url')
+                Tables\Columns\ImageColumn::make('logo_path')
                     ->label('')
+                    ->disk('public')
                     ->width(36)
                     ->height(36)
-                    ->defaultImageUrl(fn () => null)
                     ->extraImgAttributes(['class' => 'rounded']),
 
                 Tables\Columns\TextColumn::make('name')
@@ -117,30 +93,10 @@ class LeagueResource extends Resource
                     ->sortable()
                     ->weight('semibold'),
 
-                Tables\Columns\TextColumn::make('short_name')
-                    ->label('Code')
-                    ->badge()
-                    ->color('gray')
-                    ->placeholder('—'),
-
                 Tables\Columns\TextColumn::make('season')
                     ->label('Season')
                     ->placeholder('—')
                     ->sortable(),
-
-                Tables\Columns\TextColumn::make('country')
-                    ->label('Country')
-                    ->placeholder('—')
-                    ->searchable(),
-
-                Tables\Columns\BadgeColumn::make('match_type')
-                    ->label('Format')
-                    ->colors([
-                        'success' => 'T20',
-                        'info'    => 'ODI',
-                        'warning' => 'Test',
-                        'gray'    => 'T10',
-                    ]),
 
                 Tables\Columns\TextColumn::make('teams_count')
                     ->label('Teams')
@@ -175,15 +131,6 @@ class LeagueResource extends Resource
                     ->trueLabel('Active only')
                     ->falseLabel('Inactive only')
                     ->placeholder('All leagues'),
-
-                Tables\Filters\SelectFilter::make('match_type')
-                    ->label('Format')
-                    ->options([
-                        'T20'  => 'T20',
-                        'ODI'  => 'ODI',
-                        'Test' => 'Test',
-                        'T10'  => 'T10',
-                    ]),
 
             ])
             ->actions([
