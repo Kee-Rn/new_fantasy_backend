@@ -61,8 +61,7 @@ class GameMatchResource extends Resource
                         ->searchable()
                         ->options(fn (Get $get) => self::getTeamOptions($get('league_id')))
                         ->live()
-                        ->afterStateUpdated(fn (Forms\Set $set) => $set('batting_first_team_id', null))
-                        ->helperText('Select league first to filter teams'),
+                        ->afterStateUpdated(fn (Forms\Set $set) => $set('batting_first_team_id', null)),
 
                     Forms\Components\Select::make('away_team_id')
                         ->label('Away team')
@@ -70,32 +69,14 @@ class GameMatchResource extends Resource
                         ->searchable()
                         ->options(fn (Get $get) => self::getTeamOptions($get('league_id')))
                         ->live()
-                        ->afterStateUpdated(fn (Forms\Set $set) => $set('batting_first_team_id', null))
-                        ->helperText('Select league first to filter teams'),
+                        ->afterStateUpdated(fn (Forms\Set $set) => $set('batting_first_team_id', null)),
 
                 ])
                 ->columns(2),
 
-            // ── Schedule ──────────────────────────────────────────────
-            Forms\Components\Section::make('Schedule')
+            // ── Schedule & Status ─────────────────────────────────────
+            Forms\Components\Section::make('Schedule & Status')
                 ->schema([
-
-                    Forms\Components\TextInput::make('match_number')
-                        ->label('Match number')
-                        ->numeric()
-                        ->nullable()
-                        ->placeholder('e.g. 1'),
-
-                    Forms\Components\Select::make('match_type')
-                        ->label('Match type')
-                        ->required()
-                        ->options([
-                            'T20'  => 'T20',
-                            'ODI'  => 'ODI',
-                            'Test' => 'Test',
-                            'T10'  => 'T10',
-                        ])
-                        ->default('T20'),
 
                     Forms\Components\DateTimePicker::make('start_time')
                         ->label('Start time')
@@ -114,16 +95,6 @@ class GameMatchResource extends Resource
                         ])
                         ->default('upcoming'),
 
-                    Forms\Components\TextInput::make('venue')
-                        ->label('Venue')
-                        ->maxLength(150)
-                        ->placeholder('e.g. Wankhede Stadium'),
-
-                    Forms\Components\TextInput::make('city')
-                        ->label('City')
-                        ->maxLength(60)
-                        ->placeholder('e.g. Mumbai'),
-
                     Forms\Components\Toggle::make('is_featured')
                         ->label('Featured match')
                         ->default(false)
@@ -132,28 +103,23 @@ class GameMatchResource extends Resource
                 ])
                 ->columns(2),
 
-            // ── Toss (filled after toss) ──────────────────────────────
+            // ── Toss ──────────────────────────────────────────────────
             Forms\Components\Section::make('Toss')
                 ->description('Fill in after the toss is done')
                 ->schema([
 
                     Forms\Components\Select::make('batting_first_team_id')
                         ->label('Batting first')
-                        ->searchable()
                         ->nullable()
                         ->options(function (Get $get) {
                             $home = $get('home_team_id');
                             $away = $get('away_team_id');
+                            if (! $home && ! $away) return [];
 
-                            if (! $home && ! $away) {
-                                return [];
-                            }
-
-                            return Team::query()
-                                ->whereIn('id', array_filter([$home, $away]))
+                            return Team::whereIn('id', array_filter([$home, $away]))
                                 ->pluck('name', 'id');
                         })
-                        ->helperText('Set after toss — determines batting/fielding team in ball-by-ball entry'),
+                        ->helperText('Determines batting/fielding team in ball-by-ball entry'),
 
                     Forms\Components\Select::make('toss_winner')
                         ->label('Toss won by')
@@ -161,13 +127,9 @@ class GameMatchResource extends Resource
                         ->options(function (Get $get) {
                             $home = $get('home_team_id');
                             $away = $get('away_team_id');
+                            if (! $home && ! $away) return [];
 
-                            if (! $home && ! $away) {
-                                return [];
-                            }
-
-                            return Team::query()
-                                ->whereIn('id', array_filter([$home, $away]))
+                            return Team::whereIn('id', array_filter([$home, $away]))
                                 ->pluck('name', 'id');
                         }),
 
@@ -183,7 +145,7 @@ class GameMatchResource extends Resource
                 ->columns(3)
                 ->collapsible(),
 
-            // ── Result (filled after match) ───────────────────────────
+            // ── Result ────────────────────────────────────────────────
             Forms\Components\Section::make('Result')
                 ->description('Fill in after the match is completed')
                 ->schema([
@@ -191,20 +153,20 @@ class GameMatchResource extends Resource
                     Forms\Components\TextInput::make('result')
                         ->label('Result summary')
                         ->maxLength(200)
-                        ->placeholder('e.g. Mumbai Indians won by 6 wickets')
+                        ->placeholder('e.g. Karnali Yaks won by 6 wickets')
                         ->columnSpanFull(),
 
                     Forms\Components\Select::make('result_type')
                         ->label('Result type')
                         ->nullable()
                         ->options([
-                            'runs'      => 'Won by runs',
-                            'wickets'   => 'Won by wickets',
-                            'super_over'=> 'Super over',
-                            'dls'       => 'DLS method',
-                            'tie'       => 'Tie',
-                            'no_result' => 'No result',
-                            'abandoned' => 'Abandoned',
+                            'runs'       => 'Won by runs',
+                            'wickets'    => 'Won by wickets',
+                            'super_over' => 'Super over',
+                            'dls'        => 'DLS method',
+                            'tie'        => 'Tie',
+                            'no_result'  => 'No result',
+                            'abandoned'  => 'Abandoned',
                         ]),
 
                 ])
@@ -224,19 +186,12 @@ class GameMatchResource extends Resource
         return $table
             ->columns([
 
-                Tables\Columns\TextColumn::make('match_number')
-                    ->label('#')
-                    ->sortable()
-                    ->alignCenter()
-                    ->placeholder('—')
-                    ->width(50),
-
                 Tables\Columns\TextColumn::make('match_label')
                     ->label('Match')
                     ->getStateUsing(fn ($record) =>
-                        ($record->homeTeam?->short_name ?? $record->homeTeam?->name ?? '?')
+                        ($record->homeTeam?->name ?? '?')
                         . ' vs '
-                        . ($record->awayTeam?->short_name ?? $record->awayTeam?->name ?? '?')
+                        . ($record->awayTeam?->name ?? '?')
                     )
                     ->weight('semibold')
                     ->searchable(query: fn ($query, $search) =>
@@ -249,26 +204,11 @@ class GameMatchResource extends Resource
                     ->sortable()
                     ->limit(25),
 
-                Tables\Columns\BadgeColumn::make('match_type')
-                    ->label('Format')
-                    ->colors([
-                        'success' => 'T20',
-                        'info'    => 'ODI',
-                        'warning' => 'Test',
-                        'gray'    => 'T10',
-                    ]),
-
                 Tables\Columns\TextColumn::make('start_time')
                     ->label('Start time')
                     ->dateTime('d M Y, H:i')
                     ->sortable()
                     ->placeholder('—'),
-
-                Tables\Columns\TextColumn::make('venue')
-                    ->label('Venue')
-                    ->placeholder('—')
-                    ->limit(25)
-                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\BadgeColumn::make('status')
                     ->label('Status')
@@ -280,10 +220,9 @@ class GameMatchResource extends Resource
                     ])
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('battingFirstTeam.short_name')
+                Tables\Columns\TextColumn::make('battingFirstTeam.name')
                     ->label('Bats first')
                     ->placeholder('—')
-                    ->alignCenter()
                     ->badge()
                     ->color('warning'),
 
@@ -328,15 +267,6 @@ class GameMatchResource extends Resource
                             ])
                     ),
 
-                Tables\Filters\SelectFilter::make('match_type')
-                    ->label('Format')
-                    ->options([
-                        'T20'  => 'T20',
-                        'ODI'  => 'ODI',
-                        'Test' => 'Test',
-                        'T10'  => 'T10',
-                    ]),
-
                 Tables\Filters\TernaryFilter::make('is_featured')
                     ->label('Featured')
                     ->trueLabel('Featured only')
@@ -374,9 +304,6 @@ class GameMatchResource extends Resource
     // HELPERS
     // ──────────────────────────────────────────────────────────────────
 
-    /**
-     * Teams filtered by league_id, or all teams if no league selected.
-     */
     private static function getTeamOptions(?int $leagueId): array
     {
         $query = Team::query()->orderBy('name');
@@ -385,9 +312,7 @@ class GameMatchResource extends Resource
             $query->where('league_id', $leagueId);
         }
 
-        return $query->get()->mapWithKeys(fn ($t) => [
-            $t->id => $t->name . ($t->short_name ? ' (' . $t->short_name . ')' : ''),
-        ])->toArray();
+        return $query->pluck('name', 'id')->toArray();
     }
 
     // ──────────────────────────────────────────────────────────────────
