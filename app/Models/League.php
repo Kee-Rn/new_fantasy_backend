@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class League extends Model
 {
@@ -12,11 +13,8 @@ class League extends Model
 
     protected $fillable = [
         'name',
-        'short_name',
         'season',
-        'country',
-        'match_type',
-        'logo_url',
+        'logo_path',
         'is_active',
     ];
 
@@ -36,7 +34,14 @@ class League extends Model
         return $this->hasMany(GameMatch::class);
     }
 
-    // ── Scopes ─────────────────────────────────────────────────────────────
+    // ── Helpers ────────────────────────────────────────────────────────────
+
+    public function getLogoUrlAttribute(): ?string
+    {
+        return $this->logo_path
+            ? Storage::url($this->logo_path)
+            : null;
+    }
 
     public function scopeActive($query)
     {
