@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\MatchController;
+use App\Http\Controllers\Api\ContestController;
 
 /*
 |--------------------------------------------------------------------------
@@ -12,6 +14,14 @@ use App\Http\Controllers\Api\AuthController;
 // ── Auth ───────────────────────────────────────────────────────────────────
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
+
+// ── Matches ────────────────────────────────────────────────────────────────
+Route::get('/matches',                          [MatchController::class, 'index']);
+Route::get('/matches/{id}',                     [MatchController::class, 'show']);
+
+// ── Contests ───────────────────────────────────────────────────────────────
+Route::get('/matches/{matchId}/contests',       [ContestController::class, 'forMatch']);
+Route::get('/contests/{id}',                    [ContestController::class, 'show']);
 
 /*
 |--------------------------------------------------------------------------
