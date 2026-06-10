@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Filament\Models\Contracts\FilamentUser;
-use Filament\Panel;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     use HasApiTokens, HasFactory, Notifiable;
 
@@ -31,6 +31,13 @@ class User extends Authenticatable
         'password'          => 'hashed',
     ];
 
+    // ── Filament ───────────────────────────────────────────────────────────
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->role === 'admin';
+    }
+
     // ── Relationships ──────────────────────────────────────────────────────
 
     public function fantasyTeams(): HasMany
@@ -43,14 +50,5 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
-    }
-}
-class User extends Authenticatable implements FilamentUser
-{
-    
-
-    public function canAccessPanel(Panel $panel): bool
-    {
-        return $this->role === 'admin'; // uses our role column
     }
 }
