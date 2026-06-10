@@ -30,17 +30,17 @@ class PlayerResource extends Resource
     {
         return $form->schema([
 
-            Forms\Components\Section::make('Player identity')
+            Forms\Components\Section::make('Player details')
                 ->schema([
 
                     Forms\Components\TextInput::make('name')
                         ->label('Full name')
                         ->required()
                         ->maxLength(100)
-                        ->placeholder('e.g. Virat Kohli')
+                        ->placeholder('e.g. Rohit Paudel')
                         ->columnSpanFull(),
 
-                    // League picker — not persisted, just used to filter teams below
+                    // League filter — not persisted, just filters team dropdown
                     Forms\Components\Select::make('league_id_filter')
                         ->label('League')
                         ->searchable()
@@ -56,7 +56,7 @@ class PlayerResource extends Resource
                         ->live()
                         ->afterStateUpdated(fn (Forms\Set $set) => $set('team_id', null))
                         ->helperText('Filter teams by league')
-                        ->dehydrated(false),   // not saved to DB
+                        ->dehydrated(false),
 
                     Forms\Components\Select::make('team_id')
                         ->label('Team')
@@ -71,17 +71,9 @@ class PlayerResource extends Resource
                                 $query->where('league_id', $leagueId);
                             }
 
-                            return $query->get()->mapWithKeys(fn ($t) => [
-                                $t->id => $t->name . ($t->short_name ? ' (' . $t->short_name . ')' : ''),
-                            ]);
+                            return $query->pluck('name', 'id');
                         })
-                        ->helperText('Leave empty for unsold / unassigned players'),
-
-                ])
-                ->columns(2),
-
-            Forms\Components\Section::make('Role & playing style')
-                ->schema([
+                        ->helperText('Leave empty for unassigned players'),
 
                     Forms\Components\Select::make('role')
                         ->label('Role')
@@ -94,54 +86,30 @@ class PlayerResource extends Resource
                         ])
                         ->helperText('Used for fantasy team composition rules'),
 
-                    Forms\Components\TextInput::make('nationality')
-                        ->label('Nationality')
-                        ->maxLength(60)
-                        ->placeholder('e.g. Indian'),
-
-                    Forms\Components\Select::make('batting_style')
-                        ->label('Batting style')
-                        ->nullable()
-                        ->options([
-                            'Right-hand bat' => 'Right-hand bat',
-                            'Left-hand bat'  => 'Left-hand bat',
-                        ]),
-
-                    Forms\Components\Select::make('bowling_style')
-                        ->label('Bowling style')
-                        ->nullable()
-                        ->options([
-                            'Right-arm fast'         => 'Right-arm fast',
-                            'Right-arm medium'       => 'Right-arm medium',
-                            'Right-arm off-break'    => 'Right-arm off-break',
-                            'Right-arm leg-break'    => 'Right-arm leg-break',
-                            'Left-arm fast'          => 'Left-arm fast',
-                            'Left-arm medium'        => 'Left-arm medium',
-                            'Left-arm orthodox'      => 'Left-arm orthodox',
-                            'Left-arm wrist-spin'    => 'Left-arm wrist-spin',
-                        ]),
-
-                ])
-                ->columns(2),
-
-            Forms\Components\Section::make('Photo & status')
-                ->schema([
-
-                    Forms\Components\TextInput::make('photo_url')
-                        ->label('Photo URL')
-                        ->url()
-                        ->maxLength(500)
-                        ->placeholder('https://...')
-                        ->suffixIcon('heroicon-o-photo')
-                        ->columnSpanFull(),
-
                     Forms\Components\Toggle::make('is_active')
                         ->label('Active')
                         ->default(true)
                         ->helperText('Inactive players are hidden from fantasy team selection'),
 
                 ])
-                ->columns(2)
+                ->columns(2),
+
+            Forms\Components\Section::make('Photo')
+                ->schema([
+
+                    Forms\Components\FileUpload::make('photo_path')
+                        ->label('Player photo')
+                        ->image()
+                        ->disk('public')
+                        ->directory('photos/players')
+                        ->imageResizeMode('cover')
+                        ->imageCropAspectRatio('1:1')
+                        ->imageResizeTargetWidth('300')
+                        ->imageResizeTargetHeight('300')
+                        ->maxSize(2048)
+                        ->helperText('Square image recommended. Max 2MB.'),
+
+                ])
                 ->collapsible()
                 ->collapsed(fn ($record) => $record === null),
 
@@ -157,8 +125,9 @@ class PlayerResource extends Resource
         return $table
             ->columns([
 
-                Tables\Columns\ImageColumn::make('photo_url')
+                Tables\Columns\ImageColumn::make('photo_path')
                     ->label('')
+                    ->disk('public')
                     ->width(36)
                     ->height(36)
                     ->circular(),
@@ -190,28 +159,6 @@ class PlayerResource extends Resource
                     ->limit(25)
                     ->placeholder('—'),
 
-                Tables\Columns\TextColumn::make('nationality')
-                    ->label('Nationality')
-                    ->searchable()
-                    ->placeholder('—')
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                Tables\Columns\TextColumn::make('batting_style')
-                    ->label('Batting')
-                    ->formatStateUsing(fn ($state) => match ($state) {
-                        'Right-hand bat' => 'RHB',
-                        'Left-hand bat'  => 'LHB',
-                        default          => '—',
-                    })
-                    ->alignCenter()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                Tables\Columns\TextColumn::make('bowling_style')
-                    ->label('Bowling style')
-                    ->placeholder('—')
-                    ->limit(22)
-                    ->toggleable(isToggledHiddenByDefault: true),
-
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Active')
                     ->boolean()
@@ -240,21 +187,7 @@ class PlayerResource extends Resource
                 Tables\Filters\SelectFilter::make('team_id')
                     ->label('Team')
                     ->searchable()
-                    ->options(
-                        Team::query()->orderBy('name')->pluck('name', 'id')
-                    ),
-
-                Tables\Filters\SelectFilter::make('league')
-                    ->label('League')
-                    ->searchable()
-                    ->relationship('team.league', 'name')
-                    ->options(
-                        League::query()->orderBy('name')
-                            ->get()
-                            ->mapWithKeys(fn ($l) => [
-                                $l->id => $l->name . ($l->season ? ' (' . $l->season . ')' : ''),
-                            ])
-                    ),
+                    ->options(Team::query()->orderBy('name')->pluck('name', 'id')),
 
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Status')
@@ -262,17 +195,10 @@ class PlayerResource extends Resource
                     ->falseLabel('Inactive only')
                     ->placeholder('All players'),
 
-                Tables\Filters\SelectFilter::make('batting_style')
-                    ->options([
-                        'Right-hand bat' => 'Right-hand bat',
-                        'Left-hand bat'  => 'Left-hand bat',
-                    ]),
-
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make()
-                    ->requiresConfirmation(),
+                Tables\Actions\DeleteAction::make()->requiresConfirmation(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

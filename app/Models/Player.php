@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Player extends Model
 {
@@ -15,10 +16,7 @@ class Player extends Model
         'team_id',
         'name',
         'role',
-        'batting_style',
-        'bowling_style',
-        'nationality',
-        'photo_url',
+        'photo_path',
         'is_active',
     ];
 
@@ -43,23 +41,24 @@ class Player extends Model
         return $this->hasMany(FantasyTeamPlayer::class);
     }
 
-    /**
-     * All ball-by-ball deliveries where this player was the batsman.
-     */
     public function deliveriesBatted(): HasMany
     {
         return $this->hasMany(BallByBall::class, 'batsman_id');
     }
 
-    /**
-     * All ball-by-ball deliveries where this player was the bowler.
-     */
     public function deliveriesBowled(): HasMany
     {
         return $this->hasMany(BallByBall::class, 'bowler_id');
     }
 
-    // ── Scopes ─────────────────────────────────────────────────────────────
+    // ── Helpers ────────────────────────────────────────────────────────────
+
+    public function getPhotoUrlAttribute(): ?string
+    {
+        return $this->photo_path
+            ? Storage::url($this->photo_path)
+            : null;
+    }
 
     public function scopeActive($query)
     {
@@ -71,25 +70,8 @@ class Player extends Model
         return $query->where('role', $role);
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────
-
-    public function isWicketkeeper(): bool
-    {
-        return $this->role === 'WK';
-    }
-
-    public function isBatsman(): bool
-    {
-        return $this->role === 'BAT';
-    }
-
-    public function isBowler(): bool
-    {
-        return $this->role === 'BOWL';
-    }
-
-    public function isAllRounder(): bool
-    {
-        return $this->role === 'ALL';
-    }
+    public function isWicketkeeper(): bool { return $this->role === 'WK'; }
+    public function isBatsman(): bool      { return $this->role === 'BAT'; }
+    public function isBowler(): bool       { return $this->role === 'BOWL'; }
+    public function isAllRounder(): bool   { return $this->role === 'ALL'; }
 }
