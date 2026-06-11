@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\BallByBall;
+use App\Observers\BallByBallObserver;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -11,9 +13,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-    $this->app->singleton(\App\Services\Cricket\FantasyPointsService::class);
-    $this->app->singleton(\App\Services\Cricket\BallByBallStatsService::class);
-    $this->app->singleton(\App\Services\Cricket\PointsCalculator::class);
+        $this->app->singleton(\App\Services\Cricket\FantasyPointsService::class);
+        $this->app->singleton(\App\Services\Cricket\BallByBallStatsService::class);
+        $this->app->singleton(\App\Services\Cricket\PointsCalculator::class);
     }
 
     /**
@@ -21,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Trigger fantasy points recalculation on every ball entry/edit/delete
+        BallByBall::observe(BallByBallObserver::class);
     }
 }
