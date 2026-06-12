@@ -35,7 +35,7 @@ class BallByBallResource extends Resource
 
                 Tables\Columns\TextColumn::make('over_label')
                     ->label('Over.Ball')
-                    ->getStateUsing(fn ($r) => ($r->over_number + 1) . '.' . $r->ball_number)
+                    ->getStateUsing(fn ($record) => ($record->over_number + 1) . '.' . $record->ball_number)
                     ->alignCenter(),
 
                 Tables\Columns\TextColumn::make('innings')
@@ -92,7 +92,7 @@ class BallByBallResource extends Resource
 
                 Tables\Columns\TextColumn::make('total_runs_after')
                     ->label('Score')
-                    ->getStateUsing(fn ($r) => $r->total_runs_after . '/' . $r->total_wickets_after)
+                    ->getStateUsing(fn ($record) => $record->total_runs_after . "/" . $record->total_wickets_after)
                     ->alignCenter(),
 
                 Tables\Columns\TextColumn::make('notes')
