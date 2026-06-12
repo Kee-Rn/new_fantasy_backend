@@ -209,6 +209,29 @@ class LiveScore extends Page
             return;
         }
 
+        $match = GameMatch::find($this->match_id);
+        if (! $match || $match->status !== 'live') {
+            Notification::make()
+                ->title('Match is not live')
+                ->body('Set the match status to "Live" before entering scores.')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        $hasActiveContest = $match->fantasyContests()
+            ->whereIn('status', ['upcoming', 'active'])
+            ->exists();
+
+        if (! $hasActiveContest) {
+            Notification::make()
+                ->title('No active contest')
+                ->body('There is no active or upcoming contest for this match. Activate a contest first.')
+                ->danger()
+                ->send();
+            return;
+        }
+
         $ballsToSave = collect($this->over_balls)->filter(
             fn ($b) => $b['batsman_id'] && $b['bowler_id']
         );
@@ -333,6 +356,32 @@ class LiveScore extends Page
             Notification::make()->title('Select a match first')->warning()->send();
             return;
         }
+
+        // Guard: match must be live
+        $match = GameMatch::find($this->match_id);
+        if (! $match || $match->status !== 'live') {
+            Notification::make()
+                ->title('Match is not live')
+                ->body('Set the match status to "Live" before entering scores.')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        // Guard: at least one contest must be active
+        $hasActiveContest = $match->fantasyContests()
+            ->whereIn('status', ['upcoming', 'active'])
+            ->exists();
+
+        if (! $hasActiveContest) {
+            Notification::make()
+                ->title('No active contest')
+                ->body('There is no active or upcoming contest for this match. Activate a contest first.')
+                ->danger()
+                ->send();
+            return;
+        }
+
         if (! $this->batsman_id) {
             Notification::make()->title('Select a batsman')->warning()->send();
             return;
