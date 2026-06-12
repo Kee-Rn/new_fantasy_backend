@@ -364,11 +364,20 @@ class LiveScore extends Page
     {
         if (! $this->match_id) return [];
 
+        $match = GameMatch::find($this->match_id);
+        if (! $match || ! $match->batting_first_team_id) return [];
+
+        $battingTeamId = $this->innings === 1
+            ? $match->batting_first_team_id
+            : ($match->home_team_id === $match->batting_first_team_id
+                ? $match->away_team_id
+                : $match->home_team_id);
+
         return MatchPlayer::where('match_id', $this->match_id)
             ->where('is_playing_xi', true)
+            ->where('team_id', $battingTeamId)
             ->with('player')
             ->get()
-            ->filter(fn ($mp) => in_array($mp->player?->role, ['BAT', 'ALL', 'WK']))
             ->mapWithKeys(fn ($mp) => [
                 $mp->player_id => $mp->player->name . ' (' . $mp->player->role . ')',
             ])
@@ -379,11 +388,20 @@ class LiveScore extends Page
     {
         if (! $this->match_id) return [];
 
+        $match = GameMatch::find($this->match_id);
+        if (! $match || ! $match->batting_first_team_id) return [];
+
+        $fieldingTeamId = $this->innings === 1
+            ? ($match->home_team_id === $match->batting_first_team_id
+                ? $match->away_team_id
+                : $match->home_team_id)
+            : $match->batting_first_team_id;
+
         return MatchPlayer::where('match_id', $this->match_id)
             ->where('is_playing_xi', true)
+            ->where('team_id', $fieldingTeamId)
             ->with('player')
             ->get()
-            ->filter(fn ($mp) => in_array($mp->player?->role, ['BOWL', 'ALL']))
             ->mapWithKeys(fn ($mp) => [
                 $mp->player_id => $mp->player->name . ' (' . $mp->player->role . ')',
             ])
