@@ -284,7 +284,7 @@ class GameMatchResource extends Resource
                     ->label('Score')
                     ->icon('heroicon-o-play-circle')
                     ->color('success')
-                    ->url(fn ($record) => BallByBallResource::getUrl('create') . '?match_id=' . $record->id)
+                    ->url(fn ($record) => BallByBallResource::getUrl('score') . '?match_id=' . $record->id)
                     ->visible(fn ($record) => $record->status === 'live')
                     ->openUrlInNewTab(),
 
