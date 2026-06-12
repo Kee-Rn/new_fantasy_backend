@@ -122,11 +122,27 @@ class BallByBallResource extends Resource
                     ->options([1 => '1st Innings', 2 => '2nd Innings']),
             ])
             ->actions([
-                Tables\Actions\DeleteAction::make()->requiresConfirmation(),
+                Tables\Actions\DeleteAction::make()
+                    ->requiresConfirmation()
+                    ->after(function ($record) {
+                        $match = \App\Models\GameMatch::find($record->match_id);
+                        if ($match) {
+                            app(\App\Services\Cricket\FantasyPointsService::class)->processMatch($match);
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->after(function ($records) {
+                            $matchId = $records->first()?->match_id;
+                            if ($matchId) {
+                                $match = \App\Models\GameMatch::find($matchId);
+                                if ($match) {
+                                    app(\App\Services\Cricket\FantasyPointsService::class)->processMatch($match);
+                                }
+                            }
+                        }),
                 ]),
             ])
             ->defaultSort('id', 'desc');
