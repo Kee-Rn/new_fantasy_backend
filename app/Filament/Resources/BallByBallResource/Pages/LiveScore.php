@@ -179,6 +179,16 @@ class LiveScore extends Page
         $this->advanceBallNumber();
         $this->resetBallFields();
 
+        // Auto-recalculate fantasy points for all active contests on this match
+        try {
+            $match = GameMatch::find($this->match_id);
+            if ($match) {
+                app(\App\Services\Cricket\FantasyPointsService::class)->processMatch($match);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Auto points recalc failed: ' . $e->getMessage());
+        }
+
         Notification::make()
             ->title('Ball saved — ' . ($this->current_over) . '.' . ($this->current_ball - 1))
             ->success()
@@ -246,6 +256,16 @@ class LiveScore extends Page
         $this->current_ball = 1;
 
         $this->initOverBalls();
+
+        // Auto-recalculate fantasy points after over is saved
+        try {
+            $match = GameMatch::find($this->match_id);
+            if ($match) {
+                app(\App\Services\Cricket\FantasyPointsService::class)->processMatch($match);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Auto points recalc failed: ' . $e->getMessage());
+        }
 
         Notification::make()
             ->title('Over ' . $this->current_over . ' saved')

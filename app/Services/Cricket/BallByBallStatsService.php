@@ -44,6 +44,38 @@ class BallByBallStatsService
         $matchPlayerMap = MatchPlayer::where('match_id', $match->id)
             ->pluck('id', 'player_id');   // [player_id => match_player_id]
 
+        // Auto-create match_player entries for any player that appeared in
+        // ball_by_ball but was never manually assigned in the CMS.
+        $allBallPlayerIds = collect()
+            ->merge($deliveries->pluck('batsman_id'))
+            ->merge($deliveries->pluck('bowler_id'))
+            ->merge($deliveries->pluck('dismissed_player_id'))
+            ->merge($deliveries->pluck('fielder_id'))
+            ->filter()
+            ->unique();
+
+        $missingPlayerIds = $allBallPlayerIds->diff($matchPlayerMap->keys());
+
+        if ($missingPlayerIds->isNotEmpty()) {
+            $players = \App\Models\Player::whereIn('id', $missingPlayerIds)->get()->keyBy('id');
+
+            foreach ($missingPlayerIds as $playerId) {
+                $player = $players[$playerId] ?? null;
+                if (! $player) continue;
+
+                $mp = MatchPlayer::firstOrCreate(
+                    ['match_id' => $match->id, 'player_id' => $playerId],
+                    [
+                        'team_id'        => $player->team_id,
+                        'is_playing_xi'  => true,
+                        'batting_order'  => null,
+                    ]
+                );
+
+                $matchPlayerMap[$playerId] = $mp->id;
+            }
+        }
+
         // ── Accumulators ────────────────────────────────────────────────────
         // Keyed by player_id.
         $batting  = [];   // batting stats
@@ -72,8 +104,7 @@ class BallByBallStatsService
                 $matchPlayerId = $matchPlayerMap[$playerId] ?? null;
 
                 if (! $matchPlayerId) {
-                    // Player appeared in ball_by_ball but not in match_players —
-                    // skip gracefully (CMS data entry error).
+                    Log::warning("BallByBallStatsService: player {$playerId} in ball_by_ball but match_player auto-create failed for match {$match->id}.");
                     continue;
                 }
 
