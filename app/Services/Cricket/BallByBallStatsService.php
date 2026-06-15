@@ -8,6 +8,7 @@ use App\Models\MatchPlayer;
 use App\Models\PlayerPerformance;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * BallByBallStatsService
@@ -88,12 +89,29 @@ class BallByBallStatsService
             $this->accumulateFielding($ball, $fielding);
         }
 
+        // Convert raw ball counts into decimal overs and compute maidens
+        // for every bowler who bowled at least one ball this match.
+        $this->finaliseBowling($bowling, $match);
+
         // ── Merge and upsert ─────────────────────────────────────────────────
         $performances = collect();
+
+        // Players who already have a performance row for this match must be
+        // re-evaluated too, even if they no longer appear in any accumulator.
+        // Without this, a player whose ONLY contribution was e.g. a catch
+        // would simply drop out of every accumulator once that ball is
+        // deleted, leaving their stale catches/fantasy_points untouched.
+        $matchPlayerIdToPlayerId = $matchPlayerMap->flip(); // match_player_id => player_id
+
+        $existingPlayerIds = PlayerPerformance::whereIn('match_player_id', $matchPlayerMap->values())
+            ->pluck('match_player_id')
+            ->map(fn ($matchPlayerId) => $matchPlayerIdToPlayerId[$matchPlayerId] ?? null)
+            ->filter();
 
         $allPlayerIds = collect(array_keys($batting))
             ->merge(array_keys($bowling))
             ->merge(array_keys($fielding))
+            ->merge($existingPlayerIds)
             ->unique();
 
         // If no deliveries exist at all, zero out every existing performance
@@ -136,6 +154,9 @@ class BallByBallStatsService
                 $data = array_merge($bat, $bowl, $fld, [
                     'match_player_id' => $matchPlayerId,
                 ]);
+
+                // Internal-only counter, never persisted to player_performances.
+                unset($data['_balls']);
 
                 $performance = PlayerPerformance::updateOrCreate(
                     ['match_player_id' => $matchPlayerId],
