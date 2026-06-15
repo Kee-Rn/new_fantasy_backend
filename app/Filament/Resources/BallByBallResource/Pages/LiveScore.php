@@ -300,24 +300,28 @@ class LiveScore extends Page
 
     private function advanceBallNumber(): void
     {
-        // Count legal deliveries in this over
+        // Count only legal deliveries in this over (exclude wide and no_ball)
         $legalInOver = BallByBall::where('match_id', $this->match_id)
             ->where('innings', $this->innings)
             ->where('over_number', $this->current_over)
-            ->whereNull('extra_type')
-            ->orWhere(function ($q) {
-                $q->where('match_id', $this->match_id)
-                  ->where('innings', $this->innings)
-                  ->where('over_number', $this->current_over)
-                  ->whereNotIn('extra_type', ['wide', 'no_ball']);
+            ->where(function ($q) {
+                $q->whereNull('extra_type')
+                  ->orWhereNotIn('extra_type', ['wide', 'no_ball']);
             })
             ->count();
 
         if ($legalInOver >= 6) {
+            // Over complete — move to next over
             $this->current_over++;
             $this->current_ball = 1;
         } else {
-            $this->current_ball++;
+            // Wide/no-ball: ball_number stays the same (not incremented)
+            // Legal ball: increment to next position
+            $isExtra = in_array($this->extra_type, ['wide', 'no_ball']);
+            if (! $isExtra) {
+                $this->current_ball++;
+            }
+            // extras keep current_ball unchanged — re-bowled
         }
     }
 
@@ -495,12 +499,30 @@ class LiveScore extends Page
     {
         if (! $this->match_id) return collect();
 
-        return BallByBall::where('match_id', $this->match_id)
+        // Find the ID of the 12th most recent legal delivery
+        $cutoffId = BallByBall::where('match_id', $this->match_id)
+            ->where('innings', $this->innings)
+            ->where(function ($q) {
+                $q->whereNull('extra_type')
+                  ->orWhereNotIn('extra_type', ['wide', 'no_ball']);
+            })
+            ->orderBy('id', 'desc')
+            ->skip(11)
+            ->first()?->id;
+
+        // Return all deliveries (legal + extras) from that cutoff onwards
+        $query = BallByBall::where('match_id', $this->match_id)
             ->where('innings', $this->innings)
             ->with(['batsman', 'bowler'])
-            ->orderBy('id', 'desc')
-            ->limit(12)
-            ->get();
+            ->orderBy('id', 'desc');
+
+        if ($cutoffId) {
+            $query->where('id', '>=', $cutoffId);
+        } else {
+            $query->limit(20);
+        }
+
+        return $query->get();
     }
 
     public function getCurrentOverDisplay(): string

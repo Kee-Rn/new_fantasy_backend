@@ -44,7 +44,7 @@
     </div>
     @else
     <div class="flex items-center gap-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl px-4 py-3 text-sm text-green-700 dark:text-green-400">
-        ✅ <strong>Ready to score.</strong>&nbsp; Match is live and contest is active. Points will update on every ball.
+        <strong>Ready to score.</strong>&nbsp; Match is live and contest is active. Points will update on every ball.
     </div>
     @endif
     <x-filament::section>
@@ -64,7 +64,7 @@
             </div>
             <div class="w-px h-14 bg-gray-200 dark:bg-gray-700"></div>
             <div class="flex-1">
-                <p class="text-xs text-gray-500 mb-2 tracking-widest uppercase">Last 12 Balls</p>
+                <p class="text-xs text-gray-500 mb-2 tracking-widest uppercase">Last 12 Deliveries (incl. extras)</p>
                 <div class="flex flex-wrap gap-2">
                     @foreach($this->getRecentBalls() as $ball)
                         @php
