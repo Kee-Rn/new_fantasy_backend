@@ -146,14 +146,12 @@ class LiveScore extends Page
 
     public function saveBall(): void
     {
-        $this->validateBallEntry();
-        if (! $this->match_id) return;
+        if (! $this->validateBallEntry()) return;
 
         $totalRunsNow    = $this->total_runs + $this->runs_off_bat + $this->extra_runs;
         $totalWicketsNow = $this->total_wickets + ($this->is_wicket ? 1 : 0);
 
         // Delivery sequence: always incrementing within the over (includes extras)
-        // This avoids the unique constraint violation when extras re-use the same legal ball number.
         $deliverySequence = BallByBall::where('match_id', $this->match_id)
             ->where('innings', $this->innings)
             ->where('over_number', $this->current_over)
@@ -187,14 +185,19 @@ class LiveScore extends Page
         $this->advanceBallNumber();
         $this->resetBallFields();
 
-        // Auto-recalculate fantasy points for all active contests on this match
-        try {
-            $match = GameMatch::find($this->match_id);
-            if ($match) {
+        // Auto-recalculate fantasy points
+        $match = GameMatch::find($this->match_id);
+        if ($match) {
+            try {
                 app(\App\Services\Cricket\FantasyPointsService::class)->processMatch($match);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Points recalc failed: ' . $e->getMessage() . ' ' . $e->getTraceAsString());
+                Notification::make()
+                    ->title('Points recalc error')
+                    ->body($e->getMessage())
+                    ->danger()
+                    ->send();
             }
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Auto points recalc failed: ' . $e->getMessage());
         }
 
         Notification::make()
@@ -362,14 +365,13 @@ class LiveScore extends Page
         $this->initOverBalls();
     }
 
-    private function validateBallEntry(): void
+    private function validateBallEntry(): bool
     {
         if (! $this->match_id) {
             Notification::make()->title('Select a match first')->warning()->send();
-            return;
+            return false;
         }
 
-        // Guard: match must be live
         $match = GameMatch::find($this->match_id);
         if (! $match || $match->status !== 'live') {
             Notification::make()
@@ -377,10 +379,9 @@ class LiveScore extends Page
                 ->body('Set the match status to "Live" before entering scores.')
                 ->danger()
                 ->send();
-            return;
+            return false;
         }
 
-        // Guard: at least one contest must be active
         $hasActiveContest = $match->fantasyContests()
             ->whereIn('status', ['upcoming', 'active'])
             ->exists();
@@ -391,17 +392,19 @@ class LiveScore extends Page
                 ->body('There is no active or upcoming contest for this match. Activate a contest first.')
                 ->danger()
                 ->send();
-            return;
+            return false;
         }
 
         if (! $this->batsman_id) {
             Notification::make()->title('Select a batsman')->warning()->send();
-            return;
+            return false;
         }
         if (! $this->bowler_id) {
             Notification::make()->title('Select a bowler')->warning()->send();
-            return;
+            return false;
         }
+
+        return true;
     }
 
     private function emptyBall(): array

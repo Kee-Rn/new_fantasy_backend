@@ -8,7 +8,6 @@ use App\Models\MatchPlayer;
 use App\Models\PlayerPerformance;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 /**
  * BallByBallStatsService
@@ -89,29 +88,15 @@ class BallByBallStatsService
             $this->accumulateFielding($ball, $fielding);
         }
 
-        // Convert raw ball counts into decimal overs and compute maidens
-        // for every bowler who bowled at least one ball this match.
+        // Finalise bowling: convert _balls → overs, compute maidens, remove _balls
         $this->finaliseBowling($bowling, $match);
 
         // ── Merge and upsert ─────────────────────────────────────────────────
         $performances = collect();
 
-        // Players who already have a performance row for this match must be
-        // re-evaluated too, even if they no longer appear in any accumulator.
-        // Without this, a player whose ONLY contribution was e.g. a catch
-        // would simply drop out of every accumulator once that ball is
-        // deleted, leaving their stale catches/fantasy_points untouched.
-        $matchPlayerIdToPlayerId = $matchPlayerMap->flip(); // match_player_id => player_id
-
-        $existingPlayerIds = PlayerPerformance::whereIn('match_player_id', $matchPlayerMap->values())
-            ->pluck('match_player_id')
-            ->map(fn ($matchPlayerId) => $matchPlayerIdToPlayerId[$matchPlayerId] ?? null)
-            ->filter();
-
         $allPlayerIds = collect(array_keys($batting))
             ->merge(array_keys($bowling))
             ->merge(array_keys($fielding))
-            ->merge($existingPlayerIds)
             ->unique();
 
         // If no deliveries exist at all, zero out every existing performance
@@ -137,7 +122,7 @@ class BallByBallStatsService
 
         DB::transaction(function () use (
             $allPlayerIds, $batting, $bowling, $fielding,
-            $matchPlayerMap, $performances
+            $matchPlayerMap, &$performances, $match
         ) {
             foreach ($allPlayerIds as $playerId) {
                 $matchPlayerId = $matchPlayerMap[$playerId] ?? null;
@@ -155,15 +140,32 @@ class BallByBallStatsService
                     'match_player_id' => $matchPlayerId,
                 ]);
 
-                // Internal-only counter, never persisted to player_performances.
-                unset($data['_balls']);
-
                 $performance = PlayerPerformance::updateOrCreate(
                     ['match_player_id' => $matchPlayerId],
                     $data
                 );
 
                 $performances->push($performance);
+            }
+
+            // Zero out any player who had a performance row but no longer
+            // appears in any ball (e.g. fielder whose caught ball was deleted)
+            $processedMatchPlayerIds = collect($allPlayerIds->toArray())
+                ->map(fn ($pid) => $matchPlayerMap[$pid] ?? null)
+                ->filter()
+                ->values();
+
+            $staleMpIds = collect($matchPlayerMap->values())
+                ->diff($processedMatchPlayerIds);
+
+            if ($staleMpIds->isNotEmpty()) {
+                PlayerPerformance::whereIn('match_player_id', $staleMpIds)
+                    ->update(array_merge(
+                        $this->emptyBatting(),
+                        $this->emptyBowling(),
+                        $this->emptyFielding(),
+                        ['fantasy_points' => 0, 'out_status' => 'dnb']
+                    ));
             }
         });
 
@@ -209,6 +211,7 @@ class BallByBallStatsService
 
         if (! isset($bowling[$id])) {
             $bowling[$id] = $this->emptyBowling();
+            $bowling[$id]['_balls'] = 0; // internal counter, removed before DB upsert
         }
 
         $b = &$bowling[$id];
@@ -345,14 +348,13 @@ class BallByBallStatsService
     private function emptyBowling(): array
     {
         return [
-            'overs'        => 0.0,
-            'bowling_runs' => 0,
-            'wickets'      => 0,
-            'maidens'      => 0,
-            'lbw_or_bowled'=> false,
-            'no_balls'     => 0,
-            'wides'        => 0,
-            '_balls'       => 0,  // internal counter — not persisted
+            'overs'         => 0.0,
+            'bowling_runs'  => 0,
+            'wickets'       => 0,
+            'maidens'       => 0,
+            'lbw_or_bowled' => false,
+            'no_balls'      => 0,
+            'wides'         => 0,
         ];
     }
 
