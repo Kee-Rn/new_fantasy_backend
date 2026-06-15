@@ -35,7 +35,20 @@ class BallByBallResource extends Resource
 
                 Tables\Columns\TextColumn::make('over_label')
                     ->label('Over.Ball')
-                    ->getStateUsing(fn ($record) => ($record->over_number + 1) . '.' . $record->ball_number)
+                    ->getStateUsing(function ($record) {
+                        $isExtra = in_array($record->extra_type, ['wide', 'no_ball']);
+                        $legalBall = \App\Models\BallByBall::where('match_id', $record->match_id)
+                            ->where('innings', $record->innings)
+                            ->where('over_number', $record->over_number)
+                            ->where('id', '<=', $record->id)
+                            ->where(function ($q) {
+                                $q->whereNull('extra_type')
+                                  ->orWhereNotIn('extra_type', ['wide', 'no_ball']);
+                            })
+                            ->count();
+                        $label = ($record->over_number + 1) . '.' . $legalBall;
+                        return $isExtra ? $label . ' (' . $record->extra_type . ')' : $label;
+                    })
                     ->alignCenter(),
 
                 Tables\Columns\TextColumn::make('innings')

@@ -152,11 +152,19 @@ class LiveScore extends Page
         $totalRunsNow    = $this->total_runs + $this->runs_off_bat + $this->extra_runs;
         $totalWicketsNow = $this->total_wickets + ($this->is_wicket ? 1 : 0);
 
+        // Delivery sequence: always incrementing within the over (includes extras)
+        // This avoids the unique constraint violation when extras re-use the same legal ball number.
+        $deliverySequence = BallByBall::where('match_id', $this->match_id)
+            ->where('innings', $this->innings)
+            ->where('over_number', $this->current_over)
+            ->max('ball_number') ?? 0;
+        $deliverySequence++;
+
         BallByBall::create([
             'match_id'            => $this->match_id,
             'innings'             => $this->innings,
             'over_number'         => $this->current_over,
-            'ball_number'         => $this->current_ball,
+            'ball_number'         => $deliverySequence,
             'batsman_id'          => $this->batsman_id,
             'bowler_id'           => $this->bowler_id,
             'runs_off_bat'        => $this->runs_off_bat,
