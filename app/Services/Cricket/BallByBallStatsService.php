@@ -96,6 +96,27 @@ class BallByBallStatsService
             ->merge(array_keys($fielding))
             ->unique();
 
+        // If no deliveries exist at all, zero out every existing performance
+        // for this match so points reflect the empty state correctly.
+        if ($allPlayerIds->isEmpty()) {
+            $matchPlayerIds = MatchPlayer::where('match_id', $match->id)->pluck('id');
+
+            if ($matchPlayerIds->isNotEmpty()) {
+                PlayerPerformance::whereIn('match_player_id', $matchPlayerIds)
+                    ->update(array_merge(
+                        $this->emptyBatting(),
+                        $this->emptyBowling(),
+                        $this->emptyFielding(),
+                        [
+                            'fantasy_points' => 0,
+                            'out_status'     => 'dnb', // no balls = did not bat/bowl
+                        ]
+                    ));
+            }
+
+            return $performances; // empty collection
+        }
+
         DB::transaction(function () use (
             $allPlayerIds, $batting, $bowling, $fielding,
             $matchPlayerMap, $performances

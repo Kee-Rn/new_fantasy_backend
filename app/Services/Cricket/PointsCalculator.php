@@ -68,8 +68,8 @@ class PointsCalculator
      */
     public function calculate(PlayerPerformance $performance): int
     {
-        // Player did not participate at all
-        if ($performance->out_status === 'dnb' && $performance->overs == 0) {
+        // Player did not participate at all — no appearance points
+        if ($performance->out_status === 'dnb') {
             return 0;
         }
 
