@@ -31,7 +31,7 @@
     @php
         $selectedMatch = \App\Models\GameMatch::find($match_id);
         $matchIsLive   = $selectedMatch?->status === 'live';
-        $hasContest    = $selectedMatch?->fantasyContests()->whereIn('status', ['active'])->exists();
+        $hasContest    = $selectedMatch?->fantasyContests()->whereIn('status', ['upcoming', 'active'])->exists();
     @endphp
 
     @if(! $matchIsLive)
@@ -40,11 +40,11 @@
     </div>
     @elseif(! $hasContest)
     <div class="flex items-center gap-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl px-4 py-3 text-sm text-yellow-700 dark:text-yellow-400">
-        ⚠️ <strong>No active contest.</strong>&nbsp; Go to Fantasy Contests and set a contest to <strong>Active</strong> for this match.
+        ⚠️ <strong>No active contest.</strong>&nbsp; Go to Fantasy Contests and set a contest to <strong>Active</strong> or <strong>Upcoming</strong> for this match.
     </div>
     @else
     <div class="flex items-center gap-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl px-4 py-3 text-sm text-green-700 dark:text-green-400">
-        <strong>Ready to score.</strong>&nbsp; Match is live and contest is active. Points will update on every ball.
+        ✅ <strong>Ready to score.</strong>&nbsp; Match is live and contest is active. Points will update on every ball.
     </div>
     @endif
     <x-filament::section>
@@ -160,8 +160,8 @@
                     </label>
                     <div class="flex flex-wrap gap-2">
                         @foreach([0,1,2,3,4,5,6] as $run)
-                        <button type="button" wire:click="$set('runs_off_bat', {{ $run }})"
-                            class="w-10 h-10 rounded-xl text-base font-black border-2 transition shadow-sm
+                        <button type="button" wire:click="setRuns({{ $run }})"
+                            class="w-11 h-10 rounded-xl text-base font-black border-2 transition shadow-sm
                                 {{ $runs_off_bat == $run
                                     ? ($run == 4 ? 'bg-blue-500 border-blue-500 text-white scale-105 shadow-md'
                                         : ($run == 6 ? 'bg-green-500 border-green-500 text-white scale-105 shadow-md'

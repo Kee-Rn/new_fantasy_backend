@@ -83,6 +83,13 @@ class LiveScore extends Page
         $this->is_six  = (int)$value === 6;
     }
 
+    public function setRuns(int $runs): void
+    {
+        $this->runs_off_bat = $runs;
+        $this->is_four      = $runs === 4;
+        $this->is_six       = $runs === 6;
+    }
+
     public function updatedIsWicket($value): void
     {
         if (! $value) {
@@ -317,7 +324,10 @@ class LiveScore extends Page
             ->where('over_number', $this->current_over)
             ->where(function ($q) {
                 $q->whereNull('extra_type')
-                  ->orWhereNotIn('extra_type', ['wide', 'no_ball']);
+                  ->orWhere(function ($q2) {
+                      $q2->whereNotNull('extra_type')
+                         ->whereNotIn('extra_type', ['wide', 'no_ball']);
+                  });
             })
             ->count();
 
