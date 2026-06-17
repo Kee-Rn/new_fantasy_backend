@@ -36,6 +36,23 @@ class BallByBallStatsService
             ->get();
 
         if ($deliveries->isEmpty()) {
+            // No balls at all — zero out every performance for this match
+            // (can't build batting/bowling/fielding accumulators from nothing)
+            $matchPlayerIds = MatchPlayer::where('match_id', $match->id)->pluck('id');
+
+            if ($matchPlayerIds->isNotEmpty()) {
+                PlayerPerformance::whereIn('match_player_id', $matchPlayerIds)
+                    ->update(array_merge(
+                        $this->emptyBatting(),
+                        $this->emptyBowling(),
+                        $this->emptyFielding(),
+                        [
+                            'fantasy_points' => 0,
+                            'out_status'     => 'dnb',
+                        ]
+                    ));
+            }
+
             return collect();
         }
 
