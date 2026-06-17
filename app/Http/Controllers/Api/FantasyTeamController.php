@@ -102,16 +102,17 @@ class FantasyTeamController extends Controller
     {
         $players = $team->players->map(function ($player) {
             return [
-                'id'             => $player->id,
-                'name'           => $player->name,
-                'role'           => $player->role,
-                'photo_url'      => $player->photo_url,
-                'team_id'        => $player->team_id,
-                'team_name'      => $player->team->name ?? null,
-                'is_captain'     => (bool) $player->pivot->is_captain,
+                'id'              => $player->id,
+                'name'            => $player->name,
+                'role'            => $player->role,
+                'photo_url'       => $player->photo_url,
+                'team_id'         => $player->team_id,
+                'team_name'       => $player->team->name ?? null,
+                'price'           => $player->price,
+                'is_captain'      => (bool) $player->pivot->is_captain,
                 'is_vice_captain' => (bool) $player->pivot->is_vice_captain,
-                'base_points'    => $player->pivot->base_points,
-                'points'         => $player->pivot->points,
+                'base_points'     => $player->pivot->base_points,
+                'points'          => $player->pivot->points,
             ];
         });
 
@@ -119,6 +120,8 @@ class FantasyTeamController extends Controller
             'id'           => $team->id,
             'team_name'    => $team->team_name,
             'total_points' => $team->total_points,
+            'total_price'  => round($players->sum('price'), 1),
+            'budget'       => 100,
             'rank'         => $team->rank,
             'contest_id'   => $team->contest_id,
             'captain'      => $players->firstWhere('is_captain', true),
