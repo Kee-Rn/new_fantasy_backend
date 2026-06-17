@@ -71,14 +71,26 @@
                             $label = $ball->is_wicket ? 'W'
                                 : ($ball->extra_type ? strtoupper(substr($ball->extra_type,0,2)) . ($ball->extra_runs ? '+'.$ball->extra_runs : '')
                                 : (string)$ball->runs_off_bat);
-                            $color = $ball->is_wicket    ? 'bg-red-500 text-white'
-                                : ($ball->is_six         ? 'bg-green-500 text-white'
-                                : ($ball->is_four        ? 'bg-blue-500 text-white'
-                                : ($ball->extra_type     ? 'bg-yellow-400 text-gray-900'
-                                : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200')));
+                            if ($ball->is_wicket) {
+                                $dotClass = 'bg-red-500 text-white';
+                                $dotStyle = '';
+                            } elseif ($ball->is_six) {
+                                $dotClass = 'text-white';
+                                $dotStyle = 'background-color:#22c55e;';
+                            } elseif ($ball->is_four) {
+                                $dotClass = 'text-white';
+                                $dotStyle = 'background-color:#3b82f6;';
+                            } elseif ($ball->extra_type) {
+                                $dotClass = 'bg-yellow-400 text-gray-900';
+                                $dotStyle = '';
+                            } else {
+                                $dotClass = 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200';
+                                $dotStyle = '';
+                            }
                         @endphp
                         <span title="{{ ($ball->over_number+1) }}.{{ $ball->ball_number }} — {{ $ball->batsman?->name }} off {{ $ball->bowler?->name }}"
-                            class="inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold {{ $color }} cursor-default shadow-sm">
+                            class="inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold {{ $dotClass }} cursor-default shadow-sm"
+                            @if($dotStyle) style="{{ $dotStyle }}" @endif>
                             {{ $label }}
                         </span>
                     @endforeach
@@ -160,13 +172,25 @@
                     </label>
                     <div class="flex flex-wrap gap-2">
                         @foreach([0,1,2,3,4,5,6] as $run)
+                        @php
+                            $isSelected = $runs_off_bat == $run;
+                            if ($isSelected && $run == 4) {
+                                $btnClass = 'border-2 w-11 h-10 rounded-xl text-base font-black transition shadow-md scale-105 text-white';
+                                $btnStyle = 'background-color:#3b82f6;border-color:#3b82f6;';
+                            } elseif ($isSelected && $run == 6) {
+                                $btnClass = 'border-2 w-11 h-10 rounded-xl text-base font-black transition shadow-md scale-105 text-white';
+                                $btnStyle = 'background-color:#22c55e;border-color:#22c55e;';
+                            } elseif ($isSelected) {
+                                $btnClass = 'border-2 w-11 h-10 rounded-xl text-base font-black transition shadow-md scale-105 bg-primary-600 border-primary-600 text-white';
+                                $btnStyle = '';
+                            } else {
+                                $btnClass = 'border-2 w-11 h-10 rounded-xl text-base font-black transition shadow-sm border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:border-primary-400 hover:shadow';
+                                $btnStyle = '';
+                            }
+                        @endphp
                         <button type="button" wire:click="setRuns({{ $run }})"
-                            class="w-11 h-10 rounded-xl text-base font-black border-2 transition shadow-sm
-                                {{ $runs_off_bat == $run
-                                    ? ($run == 4 ? 'bg-blue-500 border-blue-500 text-white scale-105 shadow-md'
-                                        : ($run == 6 ? 'bg-green-500 border-green-500 text-white scale-105 shadow-md'
-                                        : 'bg-primary-600 border-primary-600 text-white scale-105 shadow-md'))
-                                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:border-primary-400 hover:shadow' }}">
+                            class="{{ $btnClass }}"
+                            @if($btnStyle) style="{{ $btnStyle }}" @endif>
                             {{ $run }}
                         </button>
                         @endforeach
