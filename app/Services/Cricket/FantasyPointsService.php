@@ -251,7 +251,7 @@ class FantasyPointsService
                 'player_id'       => $ftp->player_id,
                 'name'            => $ftp->player->name,
                 'role'            => $ftp->player->role,
-                'team'            => $ftp->player->team?->short_name,
+                'team'            => $ftp->player->team?->name,
                 'is_captain'      => $ftp->is_captain,
                 'is_vice_captain' => $ftp->is_vice_captain,
                 'base_points'     => $ftp->base_points,

@@ -48,9 +48,9 @@ class FantasyContestResource extends Resource
                                 ->get()
                                 ->mapWithKeys(fn ($m) => [
                                     $m->id =>
-                                        ($m->homeTeam?->short_name ?? $m->homeTeam?->name ?? '?')
+                                        ($m->homeTeam?->name ?? '?')
                                         . ' vs '
-                                        . ($m->awayTeam?->short_name ?? $m->awayTeam?->name ?? '?')
+                                        . ($m->awayTeam?->name ?? '?')
                                         . ($m->start_time ? ' — ' . $m->start_time->format('d M Y, H:i') : ''),
                                 ])
                         )
@@ -162,9 +162,9 @@ class FantasyContestResource extends Resource
                 Tables\Columns\TextColumn::make('match_label')
                     ->label('Match')
                     ->getStateUsing(fn ($record) =>
-                        ($record->match?->homeTeam?->short_name ?? '?')
+                        ($record->match?->homeTeam?->name ?? '?')
                         . ' vs '
-                        . ($record->match?->awayTeam?->short_name ?? '?')
+                        . ($record->match?->awayTeam?->name ?? '?')
                         . ($record->match?->start_time
                             ? ' · ' . $record->match->start_time->format('d M')
                             : '')
@@ -256,9 +256,9 @@ class FantasyContestResource extends Resource
                             ->get()
                             ->mapWithKeys(fn ($m) => [
                                 $m->id =>
-                                    ($m->homeTeam?->short_name ?? '?')
+                                    ($m->homeTeam?->name ?? '?')
                                     . ' vs '
-                                    . ($m->awayTeam?->short_name ?? '?')
+                                    . ($m->awayTeam?->name ?? '?')
                                     . ($m->start_time ? ' — ' . $m->start_time->format('d M Y') : ''),
                             ])
                     ),

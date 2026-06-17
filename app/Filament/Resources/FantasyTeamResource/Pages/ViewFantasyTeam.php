@@ -34,7 +34,7 @@ class ViewFantasyTeam extends ViewRecord
                         ->schema([
                             Infolists\Components\TextEntry::make('player.name')->label('Player'),
                             Infolists\Components\TextEntry::make('player.role')->label('Role')->badge(),
-                            Infolists\Components\TextEntry::make('player.team.short_name')->label('Team')->placeholder('—'),
+                            Infolists\Components\TextEntry::make('player.team.name')->label('Team')->placeholder('—'),
                             Infolists\Components\IconEntry::make('is_captain')->label('C')->boolean(),
                             Infolists\Components\IconEntry::make('is_vice_captain')->label('VC')->boolean(),
                             Infolists\Components\TextEntry::make('base_points')->label('Base pts'),

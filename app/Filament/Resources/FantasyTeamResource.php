@@ -61,9 +61,9 @@ class FantasyTeamResource extends Resource
                                     $c->id =>
                                         $c->name
                                         . ' — '
-                                        . ($c->match?->homeTeam?->short_name ?? '?')
+                                        . ($c->match?->homeTeam?->name ?? '?')
                                         . ' vs '
-                                        . ($c->match?->awayTeam?->short_name ?? '?')
+                                        . ($c->match?->awayTeam?->name ?? '?')
                                         . ($c->match?->start_time
                                             ? ' (' . $c->match->start_time->format('d M Y') . ')'
                                             : ''),
@@ -122,7 +122,7 @@ class FantasyTeamResource extends Resource
                                         ->mapWithKeys(fn ($p) => [
                                             $p->id => $p->name
                                                 . ' (' . $p->role . ')'
-                                                . ($p->team ? ' — ' . $p->team->short_name : ''),
+                                                . ($p->team ? ' — ' . $p->team->name : ''),
                                         ])
                                         ->toArray();
                                 })
@@ -229,9 +229,9 @@ class FantasyTeamResource extends Resource
                 Tables\Columns\TextColumn::make('match_label')
                     ->label('Match')
                     ->getStateUsing(fn ($record) =>
-                        ($record->contest?->match?->homeTeam?->short_name ?? '?')
+                        ($record->contest?->match?->homeTeam?->name ?? '?')
                         . ' vs '
-                        . ($record->contest?->match?->awayTeam?->short_name ?? '?')
+                        . ($record->contest?->match?->awayTeam?->name ?? '?')
                         . ($record->contest?->match?->start_time
                             ? ' · ' . $record->contest->match->start_time->format('d M')
                             : '')
@@ -279,9 +279,9 @@ class FantasyTeamResource extends Resource
                                 $c->id =>
                                     $c->name
                                     . ' — '
-                                    . ($c->match?->homeTeam?->short_name ?? '?')
+                                    . ($c->match?->homeTeam?->name ?? '?')
                                     . ' vs '
-                                    . ($c->match?->awayTeam?->short_name ?? '?'),
+                                    . ($c->match?->awayTeam?->name ?? '?'),
                             ])
                     ),
 

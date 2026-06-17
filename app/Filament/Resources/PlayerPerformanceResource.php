@@ -47,9 +47,9 @@ class PlayerPerformanceResource extends Resource
                                 ->get()
                                 ->mapWithKeys(fn ($m) => [
                                     $m->id =>
-                                        ($m->homeTeam?->short_name ?? '?')
+                                        ($m->homeTeam?->name ?? '?')
                                         . ' vs '
-                                        . ($m->awayTeam?->short_name ?? '?')
+                                        . ($m->awayTeam?->name ?? '?')
                                         . ($m->start_time ? ' — ' . $m->start_time->format('d M Y') : ''),
                                 ])
                         )
@@ -77,7 +77,7 @@ class PlayerPerformanceResource extends Resource
                                 $mp->id =>
                                     ($mp->player?->name ?? '?')
                                     . ' (' . ($mp->player?->role ?? '?') . ')'
-                                    . ' — ' . ($mp->team?->short_name ?? $mp->team?->name ?? '?'),
+                                    . ' — ' . ($mp->team?->name ?? '?'),
                             ]);
                         })
                         ->helperText('Only match players without a performance record are shown'),
@@ -215,7 +215,7 @@ class PlayerPerformanceResource extends Resource
                         'success' => 'BOWL',
                     ]),
 
-                Tables\Columns\TextColumn::make('matchPlayer.team.short_name')
+                Tables\Columns\TextColumn::make('matchPlayer.team.name')
                     ->label('Team')
                     ->badge()
                     ->color('gray'),
@@ -223,9 +223,9 @@ class PlayerPerformanceResource extends Resource
                 Tables\Columns\TextColumn::make('match_label')
                     ->label('Match')
                     ->getStateUsing(fn ($record) =>
-                        ($record->matchPlayer?->match?->homeTeam?->short_name ?? '?')
+                        ($record->matchPlayer?->match?->homeTeam?->name ?? '?')
                         . ' vs '
-                        . ($record->matchPlayer?->match?->awayTeam?->short_name ?? '?')
+                        . ($record->matchPlayer?->match?->awayTeam?->name ?? '?')
                         . ($record->matchPlayer?->match?->start_time
                             ? ' · ' . $record->matchPlayer->match->start_time->format('d M')
                             : '')
@@ -327,9 +327,9 @@ class PlayerPerformanceResource extends Resource
                             ->get()
                             ->mapWithKeys(fn ($m) => [
                                 $m->id =>
-                                    ($m->homeTeam?->short_name ?? '?')
+                                    ($m->homeTeam?->name ?? '?')
                                     . ' vs '
-                                    . ($m->awayTeam?->short_name ?? '?')
+                                    . ($m->awayTeam?->name ?? '?')
                                     . ($m->start_time ? ' — ' . $m->start_time->format('d M Y') : ''),
                             ])
                     )
