@@ -37,16 +37,25 @@ class BallByBallResource extends Resource
                     ->label('Over.Ball')
                     ->getStateUsing(function ($record) {
                         $isExtra = in_array($record->extra_type, ['wide', 'no_ball']);
-                        $legalBall = \App\Models\BallByBall::where('match_id', $record->match_id)
+
+                        $legalBallsBefore = \App\Models\BallByBall::where('match_id', $record->match_id)
                             ->where('innings', $record->innings)
                             ->where('over_number', $record->over_number)
-                            ->where('id', '<=', $record->id)
+                            ->where('id', '<', $record->id)
                             ->where(function ($q) {
                                 $q->whereNull('extra_type')
-                                  ->orWhereNotIn('extra_type', ['wide', 'no_ball']);
+                                  ->orWhere(function ($q2) {
+                                      $q2->whereNotNull('extra_type')
+                                         ->whereNotIn('extra_type', ['wide', 'no_ball']);
+                                  });
                             })
                             ->count();
-                        $label = ($record->over_number + 1) . '.' . $legalBall;
+
+                        // Both legal balls and extras display as legalBallsBefore + 1 —
+                        // a legal ball completes that slot, an extra is the attempt at it.
+                        $displayBall = $legalBallsBefore + 1;
+
+                        $label = ($record->over_number + 1) . '.' . $displayBall;
                         return $isExtra ? $label . ' (' . $record->extra_type . ')' : $label;
                     })
                     ->alignCenter(),
@@ -135,6 +144,115 @@ class BallByBallResource extends Resource
                     ->options([1 => '1st Innings', 2 => '2nd Innings']),
             ])
             ->actions([
+                Tables\Actions\EditAction::make()
+                    ->modalHeading('Edit Delivery')
+                    ->form([
+                        \Filament\Forms\Components\Select::make('batsman_id')
+                            ->label('Batsman')
+                            ->relationship('batsman', 'name')
+                            ->searchable()
+                            ->required(),
+
+                        \Filament\Forms\Components\Select::make('bowler_id')
+                            ->label('Bowler')
+                            ->relationship('bowler', 'name')
+                            ->searchable()
+                            ->required(),
+
+                        \Filament\Forms\Components\Select::make('runs_off_bat')
+                            ->label('Runs off bat')
+                            ->options(array_combine(range(0,6), range(0,6)))
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                $set('is_four', (int)$state === 4);
+                                $set('is_six', (int)$state === 6);
+                            }),
+
+                        \Filament\Forms\Components\Toggle::make('is_four')
+                            ->label('Four')
+                            ->disabled()
+                            ->dehydrated()
+                            ->afterStateHydrated(function ($state, callable $set, $get) {
+                                $set('is_four', (int)$get('runs_off_bat') === 4);
+                            }),
+
+                        \Filament\Forms\Components\Toggle::make('is_six')
+                            ->label('Six')
+                            ->disabled()
+                            ->dehydrated()
+                            ->afterStateHydrated(function ($state, callable $set, $get) {
+                                $set('is_six', (int)$get('runs_off_bat') === 6);
+                            }),
+
+                        \Filament\Forms\Components\Select::make('extra_type')
+                            ->label('Extra type')
+                            ->options([
+                                'wide'    => 'Wide',
+                                'no_ball' => 'No Ball',
+                                'bye'     => 'Bye',
+                                'leg_bye' => 'Leg Bye',
+                            ])
+                            ->nullable()
+                            ->live(),
+
+                        \Filament\Forms\Components\TextInput::make('extra_runs')
+                            ->label('Extra runs')
+                            ->numeric()
+                            ->default(0)
+                            ->nullable(),
+
+                        \Filament\Forms\Components\Toggle::make('is_wicket')
+                            ->label('Wicket fell')
+                            ->live(),
+
+                        \Filament\Forms\Components\Select::make('wicket_type')
+                            ->label('Wicket type')
+                            ->options([
+                                'bowled'             => 'Bowled',
+                                'caught'             => 'Caught',
+                                'caught_and_bowled'  => 'Caught & Bowled',
+                                'lbw'                => 'LBW',
+                                'stumped'            => 'Stumped',
+                                'run_out'            => 'Run Out',
+                                'hit_wicket'         => 'Hit Wicket',
+                                'retired_hurt'       => 'Retired Hurt',
+                            ])
+                            ->visible(fn ($get) => $get('is_wicket'))
+                            ->nullable(),
+
+                        \Filament\Forms\Components\Select::make('dismissed_player_id')
+                            ->label('Dismissed player')
+                            ->relationship('dismissedPlayer', 'name')
+                            ->searchable()
+                            ->visible(fn ($get) => $get('is_wicket'))
+                            ->nullable(),
+
+                        \Filament\Forms\Components\Select::make('fielder_id')
+                            ->label('Fielder (catch/stumping/run-out)')
+                            ->relationship('fielder', 'name')
+                            ->searchable()
+                            ->visible(fn ($get) => in_array($get('wicket_type'), ['caught', 'stumped', 'run_out']))
+                            ->nullable(),
+
+                        \Filament\Forms\Components\Textarea::make('notes')
+                            ->label('Notes')
+                            ->nullable(),
+                    ])
+                    ->mutateFormDataUsing(function (array $data): array {
+                        // Safety net: always derive is_four/is_six from runs_off_bat,
+                        // regardless of what the disabled toggles submitted.
+                        $data['is_four'] = (int)($data['runs_off_bat'] ?? 0) === 4;
+                        $data['is_six']  = (int)($data['runs_off_bat'] ?? 0) === 6;
+                        return $data;
+                    })
+                    ->after(function ($record) {
+                        $match = \App\Models\GameMatch::find($record->match_id);
+                        if ($match) {
+                            app(\App\Services\Cricket\FantasyPointsService::class)->processMatch($match);
+                        }
+                    }),
+
                 Tables\Actions\DeleteAction::make()
                     ->requiresConfirmation()
                     ->after(function ($record) {
