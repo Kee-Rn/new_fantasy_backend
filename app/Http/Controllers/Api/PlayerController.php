@@ -49,6 +49,7 @@ class PlayerController extends Controller
             'teams'    => $teams,
             'summary'  => [
                 'total_players' => $players->count(),
+                'budget'        => 100,
                 'home_team'     => $match->homeTeam->name ?? null,
                 'away_team'     => $match->awayTeam->name ?? null,
             ],
@@ -66,6 +67,7 @@ class PlayerController extends Controller
             'photo_url' => $player->photo_url,
             'team_id'   => $player->team_id,
             'team_name' => $player->team->name ?? null,
+            'price'     => $player->price,
         ];
     }
-}
+}   
