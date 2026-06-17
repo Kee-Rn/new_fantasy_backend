@@ -18,10 +18,12 @@ class Player extends Model
         'role',
         'photo_path',
         'is_active',
+        'price',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'price'     => 'float',
     ];
 
     // ── Relationships ──────────────────────────────────────────────────────
