@@ -159,6 +159,21 @@ class CreateFantasyTeamRequest extends FormRequest
                     break;
                 }
             }
+
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            // ── 6. Budget check — total price must not exceed 100 credits ──
+
+            $totalPrice = $players->sum('price');
+
+            if ($totalPrice > 100) {
+                $validator->errors()->add(
+                    'player_ids',
+                    'Your team exceeds the 100 credit budget. Current total: ' . number_format($totalPrice, 1) . ' cr.'
+                );
+            }
         });
     }
 
