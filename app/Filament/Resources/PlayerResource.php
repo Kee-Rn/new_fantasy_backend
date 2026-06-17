@@ -86,6 +86,17 @@ class PlayerResource extends Resource
                         ])
                         ->helperText('Used for fantasy team composition rules'),
 
+                    Forms\Components\TextInput::make('price')
+                        ->label('Price (credits)')
+                        ->required()
+                        ->numeric()
+                        ->default(8.0)
+                        ->minValue(6.0)
+                        ->maxValue(12.0)
+                        ->step(0.5)
+                        ->suffix('cr')
+                        ->helperText('Fantasy credit value between 6.0 and 12.0'),
+
                     Forms\Components\Toggle::make('is_active')
                         ->label('Active')
                         ->default(true)
@@ -159,6 +170,12 @@ class PlayerResource extends Resource
                     ->limit(25)
                     ->placeholder('—'),
 
+                Tables\Columns\TextColumn::make('price')
+                    ->label('Price')
+                    ->sortable()
+                    ->suffix(' cr')
+                    ->alignCenter(),
+
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Active')
                     ->boolean()
@@ -212,7 +229,7 @@ class PlayerResource extends Resource
 
                     Tables\Actions\BulkAction::make('deactivate')
                         ->label('Mark inactive')
-                        ->icon('heroicon-o-x-circle')
+                        ->icon('heroicon-o-circle-stack')
                         ->color('gray')
                         ->requiresConfirmation()
                         ->action(fn ($records) => $records->each->update(['is_active' => false])),
