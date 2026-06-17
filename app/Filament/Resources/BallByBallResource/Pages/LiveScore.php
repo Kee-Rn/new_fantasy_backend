@@ -129,23 +129,31 @@ class LiveScore extends Page
         $this->total_runs    = $last->total_runs_after;
         $this->total_wickets = $last->total_wickets_after;
 
-        // Next legal delivery position
-        $legalBalls = BallByBall::where('match_id', $this->match_id)
+        // Count legal deliveries in the last ball's over (properly scoped)
+        $legalBallsInOver = BallByBall::where('match_id', $this->match_id)
             ->where('innings', $this->innings)
             ->where('over_number', $last->over_number)
-            ->whereNotIn('extra_type', ['wide', 'no_ball'])
-            ->orWhereNull('extra_type')
-            ->where('innings', $this->innings)
-            ->where('match_id', $this->match_id)
-            ->where('over_number', $last->over_number)
+            ->where(function ($q) {
+                $q->whereNull('extra_type')
+                  ->orWhere(function ($q2) {
+                      $q2->whereNotNull('extra_type')
+                         ->whereNotIn('extra_type', ['wide', 'no_ball']);
+                  });
+            })
             ->count();
 
-        if ($legalBalls >= 6) {
+        if ($legalBallsInOver >= 6) {
+            // Over is complete — move to next over
             $this->current_over = $last->over_number + 1;
             $this->current_ball = 1;
         } else {
             $this->current_over = $last->over_number;
-            $this->current_ball = $last->ball_number + 1;
+
+            // Whether the last delivery was legal or an extra, the next ball
+            // to display is always legalBallsInOver + 1:
+            //  - if last was legal: that slot is done, move to the next one
+            //  - if last was a wide/no-ball: that slot is still pending, re-show it
+            $this->current_ball = $legalBallsInOver + 1;
         }
     }
 
