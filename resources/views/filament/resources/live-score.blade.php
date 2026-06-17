@@ -31,7 +31,7 @@
     @php
         $selectedMatch = \App\Models\GameMatch::find($match_id);
         $matchIsLive   = $selectedMatch?->status === 'live';
-        $hasContest    = $selectedMatch?->fantasyContests()->whereIn('status', ['upcoming', 'active'])->exists();
+        $hasContest    = $selectedMatch?->fantasyContests()->whereIn('status', ['active'])->exists();
     @endphp
 
     @if(! $matchIsLive)
@@ -40,11 +40,11 @@
     </div>
     @elseif(! $hasContest)
     <div class="flex items-center gap-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl px-4 py-3 text-sm text-yellow-700 dark:text-yellow-400">
-        ⚠️ <strong>No active contest.</strong>&nbsp; Go to Fantasy Contests and set a contest to <strong>Active</strong> or <strong>Upcoming</strong> for this match.
+        ⚠️ <strong>No active contest.</strong>&nbsp; Go to Fantasy Contests and set a contest to <strong>Active</strong> for this match.
     </div>
     @else
     <div class="flex items-center gap-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl px-4 py-3 text-sm text-green-700 dark:text-green-400">
-        ✅ <strong>Ready to score.</strong>&nbsp; Match is live and contest is active. Points will update on every ball.
+        <strong>Ready to score.</strong>&nbsp; Match is live and contest is active. Points will update on every ball.
     </div>
     @endif
     <x-filament::section>
