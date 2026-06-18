@@ -133,42 +133,47 @@ class FantasyPointsService
      *  - Apply captain (2×) / vice-captain (1.5×) multiplier → points
      */
     private function distributePointsToTeams(FantasyContest $contest): void
-    {
-        // Build a map: player_id → fantasy_points
-        // We resolve via: contest → match → match_players → player_performances
-        $match = $contest->match;
+{
+    $match = $contest->match;
 
-        $performanceMap = PlayerPerformance::whereHas('matchPlayer', function ($q) use ($match) {
-                $q->where('match_id', $match->id);
-            })
-            ->with('matchPlayer')
-            ->get()
-            ->keyBy(fn ($p) => $p->matchPlayer->player_id);
-        // [ player_id => PlayerPerformance ]
+    // Build player_id → fantasy_points map (single query)
+    $performanceMap = PlayerPerformance::whereHas('matchPlayer', fn($q) => $q->where('match_id', $match->id))
+        ->with('matchPlayer')
+        ->get()
+        ->keyBy(fn($p) => $p->matchPlayer->player_id);
 
-        // Load all fantasy_team_players for this contest in one query
-        $fantasyTeamPlayerRows = FantasyTeamPlayer::whereHas('fantasyTeam', function ($q) use ($contest) {
-                $q->where('contest_id', $contest->id);
-            })
-            ->get();
+    // Load all FTP rows for this contest (single query)
+    $fantasyTeamPlayerRows = FantasyTeamPlayer::whereHas('fantasyTeam', fn($q) => $q->where('contest_id', $contest->id))
+        ->get();
 
-        foreach ($fantasyTeamPlayerRows as $ftp) {
-            $performance = $performanceMap[$ftp->player_id] ?? null;
+    // Build the full update payload in PHP
+    $updates = $fantasyTeamPlayerRows->map(function ($ftp) use ($performanceMap) {
+        $basePoints = $performanceMap[$ftp->player_id]?->fantasy_points ?? 0;
 
-            $basePoints = $performance?->fantasy_points ?? 0;
+        $multiplier = match (true) {
+            $ftp->is_captain      => 2.0,
+            $ftp->is_vice_captain => 1.5,
+            default               => 1.0,
+        };
 
-            $multiplier = match (true) {
-                $ftp->is_captain      => 2.0,
-                $ftp->is_vice_captain => 1.5,
-                default               => 1.0,
-            };
+        return [
+            'id'          => $ftp->id,
+            'fantasy_team_id' => $ftp->fantasy_team_id,  // required for upsert unique key
+            'player_id'   => $ftp->player_id,
+            'base_points' => $basePoints,
+            'points'      => (int) round($basePoints * $multiplier),
+        ];
+    })->all();
 
-            $ftp->update([
-                'base_points' => $basePoints,
-                'points'      => (int) round($basePoints * $multiplier),
-            ]);
-        }
+    // ONE bulk upsert instead of 5,500 individual UPDATEs
+    if (!empty($updates)) {
+        FantasyTeamPlayer::upsert(
+            $updates,
+            ['fantasy_team_id', 'player_id'],   // unique key (matches your migration)
+            ['base_points', 'points']            // columns to update
+        );
     }
+}
 
     // ── Step 4: Sum fantasy team totals ──────────────────────────────────────
 
@@ -193,27 +198,42 @@ class FantasyPointsService
      * Ties receive the same rank (standard competition ranking: 1,1,3,4…).
      */
     private function assignRanks(FantasyContest $contest): void
-    {
-        $teams = FantasyTeam::where('contest_id', $contest->id)
-            ->orderByDesc('total_points')
-            ->get();
+{
+    $teams = FantasyTeam::where('contest_id', $contest->id)
+        ->orderByDesc('total_points')
+        ->get(['id', 'total_points']);
 
-        $rank        = 1;
-        $prevPoints  = null;
-        $sameRankCount = 0;
+    if ($teams->isEmpty()) return;
 
-        foreach ($teams as $team) {
-            if ($prevPoints !== null && $team->total_points < $prevPoints) {
-                $rank += $sameRankCount;
-                $sameRankCount = 1;
-            } else {
-                $sameRankCount++;
-            }
+    $rank          = 1;
+    $prevPoints    = null;
+    $sameRankCount = 0;
+    $cases         = [];
+    $ids           = [];
 
-            $team->update(['rank' => $rank]);
-            $prevPoints = $team->total_points;
+    foreach ($teams as $team) {
+        if ($prevPoints !== null && $team->total_points < $prevPoints) {
+            $rank += $sameRankCount;
+            $sameRankCount = 1;
+        } else {
+            $sameRankCount++;
         }
+
+        $cases[] = "WHEN id = {$team->id} THEN {$rank}";
+        $ids[]   = $team->id;
+        $prevPoints = $team->total_points;
     }
+
+    $casesSql  = implode(' ', $cases);
+    $idsSql    = implode(',', $ids);
+
+    // ONE query instead of 500 individual UPDATEs
+    DB::statement("
+        UPDATE fantasy_teams
+        SET rank = CASE {$casesSql} END
+        WHERE id IN ({$idsSql})
+    ");
+}
 
     // ── Utilities ─────────────────────────────────────────────────────────────
 
