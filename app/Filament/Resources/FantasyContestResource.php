@@ -307,33 +307,6 @@ class FantasyContestResource extends Resource
                         }
                     }),
 
-                // ── Recalculate points ────────────────────────────────
-                Tables\Actions\Action::make('recalculate_points')
-                    ->label('Recalculate')
-                    ->icon('heroicon-o-arrow-path')
-                    ->color('warning')
-                    ->requiresConfirmation()
-                    ->modalHeading('Recalculate fantasy points')
-                    ->modalDescription('Points are already calculated. This will overwrite all existing points and re-rank every team. Use this after correcting a ball-by-ball entry.')
-                    ->modalSubmitActionLabel('Yes, recalculate')
-                    ->visible(fn ($record) => $record->points_status === 'calculated')
-                    ->action(function ($record) {
-                        try {
-                            app(FantasyPointsService::class)->recalculate($record);
-                            Notification::make()
-                                ->title('Points recalculated')
-                                ->body('All teams have been re-ranked.')
-                                ->success()
-                                ->send();
-                        } catch (\Throwable $e) {
-                            Notification::make()
-                                ->title('Recalculation failed')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
-                    }),
-
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make()
                     ->requiresConfirmation()

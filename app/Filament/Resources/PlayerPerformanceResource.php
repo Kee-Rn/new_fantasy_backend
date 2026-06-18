@@ -7,7 +7,7 @@ use App\Models\GameMatch;
 use App\Models\MatchPlayer;
 use App\Models\PlayerPerformance;
 use App\Models\Team;
-use App\Services\Cricket\PointsCalculator;
+
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -181,7 +181,7 @@ class PlayerPerformanceResource extends Resource
                         ->label('Fantasy points')
                         ->numeric()
                         ->default(0)
-                        ->helperText('Use the "Recalculate" button on the list page to recompute from stats'),
+                        ->helperText('Calculated automatically from ball-by-ball data — do not edit manually'),
 
                 ])
                 ->columns(1)
@@ -378,49 +378,12 @@ class PlayerPerformanceResource extends Resource
             ])
             ->actions([
 
-                Tables\Actions\Action::make('recalculate')
-                    ->label('Recalculate pts')
-                    ->icon('heroicon-o-arrow-path')
-                    ->color('warning')
-                    ->requiresConfirmation()
-                    ->modalDescription('This will recompute fantasy_points from the current stats for this player only.')
-                    ->action(function ($record) {
-                        $points = app(PointsCalculator::class)->calculate($record);
-                        $record->update(['fantasy_points' => $points]);
-
-                        Notification::make()
-                            ->title('Points recalculated')
-                            ->body($record->matchPlayer?->player?->name . ': ' . $points . ' pts')
-                            ->success()
-                            ->send();
-                    }),
-
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make()->requiresConfirmation(),
 
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-
-                    Tables\Actions\BulkAction::make('bulk_recalculate')
-                        ->label('Recalculate points')
-                        ->icon('heroicon-o-arrow-path')
-                        ->color('warning')
-                        ->requiresConfirmation()
-                        ->modalDescription('This will recompute fantasy_points from current stats for all selected players.')
-                        ->action(function ($records) {
-                            $calculator = app(PointsCalculator::class);
-                            $records->each(function ($record) use ($calculator) {
-                                $points = $calculator->calculate($record);
-                                $record->update(['fantasy_points' => $points]);
-                            });
-
-                            Notification::make()
-                                ->title('Points recalculated')
-                                ->body('Updated ' . $records->count() . ' performances.')
-                                ->success()
-                                ->send();
-                        }),
 
                     Tables\Actions\DeleteBulkAction::make(),
 
