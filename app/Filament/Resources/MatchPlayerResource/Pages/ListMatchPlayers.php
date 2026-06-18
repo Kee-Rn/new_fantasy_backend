@@ -14,9 +14,6 @@ class ListMatchPlayers extends ListRecords
     protected static string $resource = MatchPlayerResource::class;
 
     // ── Match gate ─────────────────────────────────────────────────────────
-    // If no match is selected, the table is hidden and only the picker shows.
-    // Once a match is selected via the picker or ?match_id= URL param, the
-    // table renders filtered to that match only.
 
     public ?int $selectedMatchId = null;
 
@@ -24,7 +21,6 @@ class ListMatchPlayers extends ListRecords
     {
         parent::mount();
 
-        // Allow deep-linking: /admin/match-players?match_id=5
         $this->selectedMatchId = (int) request()->query('match_id') ?: null;
     }
 
@@ -38,7 +34,7 @@ class ListMatchPlayers extends ListRecords
         $this->selectedMatchId = null;
     }
 
-    // ── Scope the table to the selected match ──────────────────────────────
+    // ── Scope table to selected match ──────────────────────────────────────
 
     protected function getTableQuery(): Builder
     {
@@ -47,27 +43,27 @@ class ListMatchPlayers extends ListRecords
         if ($this->selectedMatchId) {
             $query->where('match_id', $this->selectedMatchId);
         } else {
-            // No match selected — return empty query so nothing loads
             $query->whereRaw('0 = 1');
         }
 
         return $query;
     }
 
-    // ── Header actions ─────────────────────────────────────────────────────
+    // ── Header actions — always visible ────────────────────────────────────
 
     protected function getHeaderActions(): array
     {
-        if (! $this->selectedMatchId) {
-            return [];
-        }
+        // "Assign Squad" always shown — deep-links with match pre-selected if available
+        $assignUrl = $this->selectedMatchId
+            ? MatchPlayerResource::getUrl('assign') . '?match_id=' . $this->selectedMatchId
+            : MatchPlayerResource::getUrl('assign');
 
         return [
             Actions\Action::make('assign_squad')
                 ->label('Assign Squad')
                 ->icon('heroicon-o-user-plus')
                 ->color('primary')
-                ->url(MatchPlayerResource::getUrl('assign') . '?match_id=' . $this->selectedMatchId),
+                ->url($assignUrl),
         ];
     }
 

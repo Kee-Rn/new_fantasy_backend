@@ -49,18 +49,21 @@ class ListPlayerPerformances extends ListRecords
         return $query;
     }
 
-    // ── Header actions ─────────────────────────────────────────────────────
+    // ── Header actions — always visible ────────────────────────────────────
 
     protected function getHeaderActions(): array
     {
-        if (! $this->selectedMatchId) {
-            return [];
-        }
+        // "Add performance" always shown — passes match context when available
+        $createUrl = $this->selectedMatchId
+            ? PlayerPerformanceResource::getUrl('create') . '?match_id=' . $this->selectedMatchId
+            : PlayerPerformanceResource::getUrl('create');
 
         return [
-            Actions\CreateAction::make()
+            Actions\Action::make('create')
                 ->label('Add performance')
-                ->url(PlayerPerformanceResource::getUrl('create') . '?match_id=' . $this->selectedMatchId),
+                ->icon('heroicon-o-plus')
+                ->color('primary')
+                ->url($createUrl),
         ];
     }
 

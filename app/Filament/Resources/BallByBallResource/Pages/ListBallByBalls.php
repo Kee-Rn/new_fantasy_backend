@@ -48,20 +48,23 @@ class ListBallByBall extends ListRecords
         return $query;
     }
 
-    // ── Header actions ─────────────────────────────────────────────────────
+    // ── Header actions — always visible ────────────────────────────────────
 
     protected function getHeaderActions(): array
     {
-        if (! $this->selectedMatchId) {
-            return [];
-        }
+        // "Enter Scores" is always shown — if a match is selected it deep-links
+        // directly into that match's live score page, otherwise opens the scorer
+        // which has its own match picker.
+        $scoreUrl = $this->selectedMatchId
+            ? BallByBallResource::getUrl('score') . '?match_id=' . $this->selectedMatchId
+            : BallByBallResource::getUrl('score');
 
         return [
             Actions\Action::make('live_score')
                 ->label('Enter Scores')
                 ->icon('heroicon-o-play-circle')
                 ->color('success')
-                ->url(BallByBallResource::getUrl('score') . '?match_id=' . $this->selectedMatchId),
+                ->url($scoreUrl),
         ];
     }
 
