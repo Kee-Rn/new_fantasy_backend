@@ -28,8 +28,8 @@ class LeaderboardController extends Controller
 
         $teams = FantasyTeam::with('user')
             ->where('contest_id', $contestId)
-            ->orderByRaw('rank IS NULL, rank ASC')   // ranked teams first, nulls last
-            ->orderByDesc('total_points')             // tiebreak within same rank
+            ->orderByRaw('rank IS NULL, rank ASC') // ranked teams first, nulls last
+            ->orderByDesc('total_points')           // tiebreak within same rank
             ->paginate($perPage);
 
         $authUserId = optional($request->user())->id;
@@ -59,12 +59,15 @@ class LeaderboardController extends Controller
 
     // ── Team card ──────────────────────────────────────────────────────────
     // GET /api/fantasy-teams/{fantasyTeamId}/card
-    // Auth: not required (any team can be viewed)
+    // Auth: required
     //
-    // Returns the full team card: all 11 players with their individual
-    // fantasy points, captain/VC flags, and performance stats.
+    // Pre-deadline:  only the team owner can view their own team.
+    // Post-deadline: any authenticated user can view any team.
+    //
+    // This prevents copying another user's captain/VC selection and
+    // full 11-player lineup before the contest locks.
 
-    public function teamCard(int $fantasyTeamId): JsonResponse
+    public function teamCard(Request $request, int $fantasyTeamId): JsonResponse
     {
         $fantasyTeam = FantasyTeam::with([
             'user',
@@ -72,9 +75,20 @@ class LeaderboardController extends Controller
             'players.team',
         ])->findOrFail($fantasyTeamId);
 
-        $matchId = $fantasyTeam->contest->match_id;
+        $contest        = $fantasyTeam->contest;
+        $deadlinePassed = $contest->isDeadlinePassed();
+        $isOwner        = $request->user()->id === $fantasyTeam->user_id;
 
-        // Load performances for all players in this match in one query
+        // Pre-deadline: block anyone who isn't the owner
+        if (! $deadlinePassed && ! $isOwner) {
+            return response()->json([
+                'message' => 'Team details are hidden until the contest deadline passes.',
+            ], 403);
+        }
+
+        $matchId = $contest->match_id;
+
+        // Load performances for all 11 players in one query
         $performances = MatchPlayer::with('performance')
             ->where('match_id', $matchId)
             ->whereIn('player_id', $fantasyTeam->players->pluck('id'))
@@ -111,6 +125,8 @@ class LeaderboardController extends Controller
                     'name' => $fantasyTeam->user->name,
                 ],
                 'contest_id'   => $fantasyTeam->contest_id,
+                // captain/VC always present here — the 403 gate above ensures
+                // only the owner sees this pre-deadline, everyone post-deadline
                 'captain'      => $players->firstWhere('is_captain', true),
                 'vice_captain' => $players->firstWhere('is_vice_captain', true),
                 'players'      => $players,
