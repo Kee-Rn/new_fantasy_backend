@@ -324,11 +324,15 @@ class FantasyTeamResource extends Resource
     // PAGES
     // ──────────────────────────────────────────────────────────────────
 
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
     public static function getPages(): array
     {
         return [
             'index'  => Pages\ListFantasyTeams::route('/'),
-            'create' => Pages\CreateFantasyTeam::route('/create'),
             'edit'   => Pages\EditFantasyTeam::route('/{record}/edit'),
             'view'   => Pages\ViewFantasyTeam::route('/{record}'),
         ];
