@@ -28,6 +28,32 @@ class FantasyTeamController extends Controller
         DB::beginTransaction();
 
         try {
+            // Lock the contest row for the duration of this transaction.
+            // Any other request trying to join the same contest will wait
+            // here until this transaction commits or rolls back.
+            $contest = FantasyContest::lockForUpdate()->find($contestId);
+
+            // Re-check slots now that we hold the lock — the value we read
+            // here is guaranteed to be accurate, unlike the check in the
+            // FormRequest which ran before the transaction.
+            if (! $contest->hasSlots()) {
+                DB::rollBack();
+
+                return response()->json([
+                    'message' => 'This contest is now full.',
+                ], 409);
+            }
+
+            // Re-check deadline inside the lock too — contest may have
+            // just passed its deadline between validation and now.
+            if ($contest->isDeadlinePassed()) {
+                DB::rollBack();
+
+                return response()->json([
+                    'message' => 'The deadline for this contest has just passed.',
+                ], 409);
+            }
+
             // Create the fantasy team
             $fantasyTeam = FantasyTeam::create([
                 'user_id'      => $user->id,
@@ -51,13 +77,14 @@ class FantasyTeamController extends Controller
 
             FantasyTeamPlayer::insert($rows);
 
-            // Increment the contest's total_teams count
-            FantasyContest::where('id', $contestId)->increment('total_teams');
+            // Safe to increment now — we hold the lock so no other
+            // request can read or write total_teams until we commit.
+            $contest->increment('total_teams');
 
             DB::commit();
 
             // Load full team to return
-            $fantasyTeam->load(['players', 'contest']);
+            $fantasyTeam->load(['players.team', 'contest']);
 
             return response()->json([
                 'message' => 'Fantasy team created successfully.',
