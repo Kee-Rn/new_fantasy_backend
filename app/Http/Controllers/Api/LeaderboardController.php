@@ -15,7 +15,8 @@ class LeaderboardController extends Controller
     // GET /api/contests/{contestId}/leaderboard
     // Auth: not required (public standings)
     //
-    // Returns all teams ranked by total_points descending.
+    // Returns teams ranked by rank asc / total_points desc, paginated.
+    // Supports ?per_page=N (default 50, hard cap 100) and ?page=N.
     // If the logged-in user has a team in this contest, their entry is
     // flagged with is_my_team: true so the frontend can highlight it.
 
@@ -23,27 +24,30 @@ class LeaderboardController extends Controller
     {
         $contest = FantasyContest::findOrFail($contestId);
 
+        $perPage = min((int) $request->input('per_page', 50), 100);
+
         $teams = FantasyTeam::with('user')
             ->where('contest_id', $contestId)
-            ->orderByDesc('total_points')
-            ->get();
+            ->orderByRaw('rank IS NULL, rank ASC')   // ranked teams first, nulls last
+            ->orderByDesc('total_points')             // tiebreak within same rank
+            ->paginate($perPage);
 
         $authUserId = optional($request->user())->id;
-
-        // Assign live ranks (ties get the same rank)
-        $ranked = $this->assignRanks($teams);
 
         return response()->json([
             'contest_id'    => $contestId,
             'points_status' => $contest->points_status,
-            'total_teams'   => $teams->count(),
-            'leaderboard'   => $ranked->map(function ($team) use ($authUserId) {
+            'total_teams'   => $teams->total(),
+            'current_page'  => $teams->currentPage(),
+            'last_page'     => $teams->lastPage(),
+            'per_page'      => $teams->perPage(),
+            'leaderboard'   => collect($teams->items())->map(function ($team) use ($authUserId) {
                 return [
-                    'rank'         => $team->_rank,
+                    'rank'            => $team->rank ?? null, // null when points not yet calculated
                     'fantasy_team_id' => $team->id,
-                    'team_name'    => $team->team_name,
-                    'total_points' => $team->total_points,
-                    'user'         => [
+                    'team_name'       => $team->team_name,
+                    'total_points'    => $team->total_points,
+                    'user'            => [
                         'id'   => $team->user->id,
                         'name' => $team->user->name,
                     ],
@@ -78,8 +82,8 @@ class LeaderboardController extends Controller
             ->keyBy('player_id');
 
         $players = $fantasyTeam->players->map(function ($player) use ($performances) {
-            $matchPlayer  = $performances->get($player->id);
-            $performance  = $matchPlayer?->performance;
+            $matchPlayer = $performances->get($player->id);
+            $performance = $matchPlayer?->performance;
 
             return [
                 'id'              => $player->id,
@@ -116,61 +120,32 @@ class LeaderboardController extends Controller
 
     // ── Helpers ────────────────────────────────────────────────────────────
 
-    /**
-     * Assign ranks to an ordered collection of teams.
-     * Teams with equal points share the same rank.
-     */
-    private function assignRanks($teams)
-    {
-        $rank        = 1;
-        $prevPoints  = null;
-        $sameRankCount = 0;
-
-        return $teams->map(function ($team, $index) use (&$rank, &$prevPoints, &$sameRankCount) {
-            if ($team->total_points === $prevPoints) {
-                $sameRankCount++;
-            } else {
-                $rank         = $rank + $sameRankCount;
-                $sameRankCount = 0;
-
-                if ($prevPoints !== null) {
-                    $rank++;
-                }
-            }
-
-            $team->_rank  = $rank;
-            $prevPoints   = $team->total_points;
-
-            return $team;
-        });
-    }
-
     private function formatPerformance($p): array
     {
         return [
             // Batting
-            'runs'                 => $p->runs,
-            'balls_faced'          => $p->balls_faced,
-            'fours'                => $p->fours,
-            'sixes'                => $p->sixes,
-            'out_status'           => $p->out_status,
-            'batting_strike_rate'  => $p->batting_strike_rate,
-            'is_duck'              => $p->is_duck,
-            'is_half_century'      => $p->is_half_century,
-            'is_century'           => $p->is_century,
+            'runs'                => $p->runs,
+            'balls_faced'         => $p->balls_faced,
+            'fours'               => $p->fours,
+            'sixes'               => $p->sixes,
+            'out_status'          => $p->out_status,
+            'batting_strike_rate' => $p->batting_strike_rate,
+            'is_duck'             => $p->is_duck,
+            'is_half_century'     => $p->is_half_century,
+            'is_century'          => $p->is_century,
             // Bowling
-            'overs'                => $p->overs,
-            'bowling_runs'         => $p->bowling_runs,
-            'wickets'              => $p->wickets,
-            'maidens'              => $p->maidens,
-            'bowling_economy'      => $p->bowling_economy,
-            'is_fifer'             => $p->is_fifer,
+            'overs'               => $p->overs,
+            'bowling_runs'        => $p->bowling_runs,
+            'wickets'             => $p->wickets,
+            'maidens'             => $p->maidens,
+            'bowling_economy'     => $p->bowling_economy,
+            'is_fifer'            => $p->is_fifer,
             // Fielding
-            'catches'              => $p->catches,
-            'stumpings'            => $p->stumpings,
-            'run_outs'             => $p->run_outs,
+            'catches'             => $p->catches,
+            'stumpings'           => $p->stumpings,
+            'run_outs'            => $p->run_outs,
             // Total
-            'fantasy_points'       => $p->fantasy_points,
+            'fantasy_points'      => $p->fantasy_points,
         ];
     }
 }
