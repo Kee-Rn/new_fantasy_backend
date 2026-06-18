@@ -6,7 +6,6 @@ use App\Filament\Resources\MatchPlayerResource;
 use App\Models\GameMatch;
 use App\Models\MatchPlayer;
 use App\Models\Player;
-use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
@@ -20,6 +19,9 @@ use Illuminate\Support\Collection;
  * Custom page for bulk-assigning a squad to a match.
  * Admin picks a match + team, ticks players from that team,
  * sets their status (XI / bench), and saves all at once.
+ *
+ * Supports deep-linking via ?match_id=X — the match selector
+ * is pre-populated when arriving from the ListMatchPlayers page.
  */
 class AssignMatchPlayers extends Page implements HasForms
 {
@@ -32,8 +34,8 @@ class AssignMatchPlayers extends Page implements HasForms
 
     public ?int    $match_id  = null;
     public ?int    $team_id   = null;
-    public array   $selected  = [];   // player_ids checked
-    public string  $xi_status = 'playing_xi'; // playing_xi | bench | unconfirmed
+    public array   $selected  = [];
+    public string  $xi_status = 'playing_xi';
 
     public ?GameMatch $selectedMatch = null;
     public Collection $availablePlayers;
@@ -41,6 +43,14 @@ class AssignMatchPlayers extends Page implements HasForms
     public function mount(): void
     {
         $this->availablePlayers = collect();
+
+        // Pre-select match if arriving from the list page via ?match_id=X
+        $matchId = (int) request()->query('match_id') ?: null;
+
+        if ($matchId) {
+            $this->match_id      = $matchId;
+            $this->selectedMatch = GameMatch::with(['homeTeam', 'awayTeam'])->find($matchId);
+        }
     }
 
     // ── Reactive: when match or team changes, reload players ──────────
@@ -68,7 +78,6 @@ class AssignMatchPlayers extends Page implements HasForms
             return;
         }
 
-        // Already assigned player IDs for this match+team
         $assigned = MatchPlayer::where('match_id', $this->match_id)
             ->where('team_id', $this->team_id)
             ->pluck('player_id')
@@ -95,13 +104,11 @@ class AssignMatchPlayers extends Page implements HasForms
             return;
         }
 
-        $isXi   = $this->xi_status === 'playing_xi';
+        $isXi    = $this->xi_status === 'playing_xi';
         $isBench = $this->xi_status === 'bench';
-
         $inserted = 0;
 
         foreach ($this->selected as $playerId) {
-            // Upsert — safe to re-run
             MatchPlayer::firstOrCreate(
                 [
                     'match_id'  => $this->match_id,
@@ -121,7 +128,6 @@ class AssignMatchPlayers extends Page implements HasForms
             ->success()
             ->send();
 
-        // Reset selection, reload available players
         $this->selected = [];
         $this->loadAvailablePlayers();
     }
@@ -163,10 +169,10 @@ class AssignMatchPlayers extends Page implements HasForms
     public function getRoleColor(string $role): string
     {
         return match ($role) {
-            'WK'   => 'text-red-600',
-            'BAT'  => 'text-blue-600',
-            'ALL'  => 'text-yellow-600',
-            'BOWL' => 'text-green-600',
+            'WK'    => 'text-red-600',
+            'BAT'   => 'text-blue-600',
+            'ALL'   => 'text-yellow-600',
+            'BOWL'  => 'text-green-600',
             default => 'text-gray-600',
         };
     }
