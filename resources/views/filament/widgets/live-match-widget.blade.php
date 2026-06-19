@@ -3,7 +3,6 @@
 
         <x-slot name="heading">
             <div class="flex items-center gap-2">
-                {{-- Pulsing live indicator --}}
                 <span class="relative flex h-2.5 w-2.5">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger-400 opacity-75"></span>
                     <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-danger-500"></span>
@@ -50,7 +49,6 @@
                 {{-- Scorecard --}}
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
-                    {{-- Innings 1 --}}
                     <div class="rounded-lg bg-gray-50 dark:bg-gray-800 px-4 py-3">
                         <p class="text-xs text-gray-400 mb-1">1st Innings</p>
                         <p class="text-2xl font-bold text-gray-900 dark:text-white">
@@ -59,7 +57,6 @@
                         <p class="text-xs text-gray-400">{{ $inn1['overs'] }} ov</p>
                     </div>
 
-                    {{-- Innings 2 (if started) --}}
                     @if($inn2)
                         <div class="rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 px-4 py-3">
                             <p class="text-xs text-primary-400 mb-1">2nd Innings</p>
@@ -76,7 +73,7 @@
 
                 </div>
 
-                {{-- Current batting/fielding info --}}
+                {{-- Current batting/fielding --}}
                 @if($batting)
                     <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                         <x-filament::icon icon="heroicon-m-arrow-right" class="w-3.5 h-3.5 text-success-500" />
@@ -90,25 +87,30 @@
                     </div>
                 @endif
 
-                {{-- Last 6 balls --}}
+                {{-- Last 6 balls — uses correct column names: runs_off_bat, extra_type --}}
                 @if($recent->count())
                     <div>
                         <p class="text-xs text-gray-400 dark:text-gray-500 mb-2">Last {{ $recent->count() }} deliveries</p>
                         <div class="flex items-center gap-1.5 flex-wrap">
                             @foreach($recent as $ball)
                                 @php
-                                    $label = $ball->is_wicket ? 'W'
-                                        : ($ball->delivery_type === 'wide'   ? 'Wd'
-                                        : ($ball->delivery_type === 'no_ball' ? 'Nb'
-                                        : ($ball->is_six  ? '6'
-                                        : ($ball->is_four ? '4'
-                                        : $ball->runs_scored))));
+                                    $isWide   = $ball->extra_type === 'wide';
+                                    $isNoBall = $ball->extra_type === 'no_ball';
 
-                                    $color = $ball->is_wicket          ? 'bg-danger-500 text-white'
-                                        : ($ball->is_six               ? 'bg-success-500 text-white'
-                                        : ($ball->is_four              ? 'bg-primary-500 text-white'
-                                        : ($ball->delivery_type === 'wide'    ? 'bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-300'
-                                        : ($ball->delivery_type === 'no_ball' ? 'bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-300'
+                                    $label = $ball->is_wicket ? 'W'
+                                        : ($isWide              ? 'Wd'
+                                        : ($isNoBall            ? 'Nb'
+                                        : ($ball->is_six        ? '6'
+                                        : ($ball->is_four       ? '4'
+                                        : ($ball->runs_off_bat == 0 ? '•' : $ball->runs_off_bat)))));
+
+                                    $color = $ball->is_wicket ? 'bg-danger-500 text-white'
+                                        : ($ball->is_six      ? 'bg-success-500 text-white'
+                                        : ($ball->is_four     ? 'bg-primary-500 text-white'
+                                        : ($isWide || $isNoBall
+                                                              ? 'bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-300'
+                                        : ($ball->runs_off_bat == 0
+                                                              ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
                                         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'))));
                                 @endphp
                                 <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold {{ $color }}">
@@ -119,7 +121,7 @@
                     </div>
                 @endif
 
-                {{-- Contest + balls info --}}
+                {{-- Footer --}}
                 <div class="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500 pt-1 border-t border-gray-100 dark:border-gray-700">
                     <span>
                         <span class="font-medium text-gray-600 dark:text-gray-300">{{ $data['total_balls'] }}</span>
